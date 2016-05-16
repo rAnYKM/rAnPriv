@@ -24,6 +24,7 @@ var/
 .installed.cfg
 *.egg
 .idea
+out/*.gexf
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
