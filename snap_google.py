@@ -194,6 +194,25 @@ class SnapEgoNet:
             nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
             logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
 
+    def attribute_distribution(self, category):
+        """
+        return a dict recording the attribute distribution
+        :param category: string 'gender', 'institution', 'job_title', 'last_name', 'place', 'university'
+        :return: dict
+        """
+        cate_feat = {num: 0 for num, item in enumerate(self.featname) if item[1] == category}
+        cate_feat[-1] = 0  # Reserve for nodes without features in this category
+        for n, features in self.node.iteritems():
+            flag = False
+            for f in features:
+                if f in cate_feat:
+                    cate_feat[f] += 1
+                    flag = True
+            if not flag:
+                cate_feat[-1] += 1
+        print cate_feat
+        return cate_feat
+
     def __init__(self, ego_id):
         self.dir = load_ranfig()
         self.root = ego_id
@@ -208,10 +227,16 @@ class SnapEgoNet:
 
 
 def main():
-    user = SnapEgoNet('100535338638690515335')
+    user = SnapEgoNet('104226133029319075907')
     print(user.get_ego_features())
-    # user.get_network(mode='friend', label_with_feature='job_title')
-    user.get_binary_label_network(features=range(38, 45, 1), mode='friend')
+    # user.get_network(mode='friend', label_with_feature='institution')
+    # user.get_binary_label_network(features=range(38, 45, 1), mode='friend')
+    feats = [
+            6,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,30,31,32,33,37,40,41,42,45,48,49,53,54,58,62,63,64,65,66,67,68,
+            72,73,74,75,76,77,81,83,84,85,86,89,90,94,95,99,101,102,
+            142, 143, 144, 145, 146, 157, 163, 179, 180, 181, 182, 243, 408, 409, 410, 411, 412, 413, 414, 415]
+    # user.get_binary_label_network(features=feats, mode='follow')
+    cate_feat = user.attribute_distribution('job_title')
 
 if __name__ == '__main__':
     main()
