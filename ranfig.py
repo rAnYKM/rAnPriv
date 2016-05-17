@@ -12,6 +12,7 @@
 
 
 import os
+import platform
 import sys
 import getopt
 import ConfigParser as cp
@@ -23,7 +24,7 @@ DEFAULT_OUT_DIR = ''
 
 
 def make_ranfig(snap_dir=DEFAULT_SNAP_DIR, data_dir=DEFAULT_DATA_DIR, out_dir=DEFAULT_OUT_DIR):
-    computer_name = os.getenv('COMPUTERNAME')
+    computer_name = platform.node()
     config = cp.RawConfigParser()
     config.add_section('FILE_DIR')
     config.set('FILE_DIR', 'SNAP_DIR', snap_dir)
@@ -35,7 +36,7 @@ def make_ranfig(snap_dir=DEFAULT_SNAP_DIR, data_dir=DEFAULT_DATA_DIR, out_dir=DE
 
 
 def load_ranfig():
-    computer_name = os.getenv('COMPUTERNAME')
+    computer_name = platform.node()
     config = cp.RawConfigParser()
     config.read(computer_name + '.rfg')
     snap_dir = config.get('FILE_DIR', 'SNAP_DIR')
