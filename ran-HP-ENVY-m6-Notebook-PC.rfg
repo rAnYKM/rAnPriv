@@ -1,5 +1,6 @@
 [FILE_DIR]
-snap_dir = /media/doc/RanPriv/facebook
+gplus_dir = /media/doc/RanPriv/gplus/gplus
+fbook_dir = /media/doc/RanPriv/facebook
 data_dir = data
 out_dir = out
 

@@ -20,7 +20,23 @@ from ranfig import load_ranfig
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+class AttributeTree:
+    def __init__(self, category, value):
+        # TODO: INITIAL REALIZE
+        JASON = value
+
+
 class FacebookEgoNet:
+    @staticmethod
+    def __feat_process(line):
+        fields = line.strip().split(';')
+
+
+    def __feat_name_list(self):
+        with open(os.path.join(self.dir['FBOOK'], self.root + '.featnames'), 'rb') as fp:
+            feat_name = [self.__feat_process(line) for line in fp.readlines()]
+            logging.debug('%d Feat(s) have been loaded.' % len(feat_name))
+            return feat_name
 
     def __init__(self, ego_id):
         self.dir = load_ranfig()

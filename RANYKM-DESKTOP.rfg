@@ -1,5 +1,6 @@
 [FILE_DIR]
-snap_dir = E:\RanPriv\gplus\gplus
+gplus_dir = E:\RanPriv\gplus\gplus
+fbook_dir = E:\RanPriv\facebook
 data_dir = data
 out_dir = out
 

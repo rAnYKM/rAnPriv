@@ -64,27 +64,27 @@ class SnapEgoNet:
         return not_in_it
 
     def __feat_name_list(self):
-        with open(os.path.join(self.dir['SNAP'], self.root + '.featnames'), 'rb') as fp:
+        with open(os.path.join(self.dir['GPLUS'], self.root + '.featnames'), 'rb') as fp:
             feat_name = [self.__feat_process(line) for line in fp.readlines()]
             logging.debug('%d Feat(s) have been loaded.' % len(feat_name))
             return feat_name
 
     def __node_feat_list(self):
-        with open(os.path.join(self.dir['SNAP'], self.root + '.feat'), 'rb') as fp:
+        with open(os.path.join(self.dir['GPLUS'], self.root + '.feat'), 'rb') as fp:
             nodes = [self.__node_process(feat) for feat in fp.readlines()]
             node_dict = dict(nodes)
             logging.debug('%d User Feature List(s) have been loaded.' % len(nodes))
             return node_dict
 
     def __ego_feat_list(self):
-        with open(os.path.join(self.dir['SNAP'], self.root + '.egofeat'), 'rb') as fp:
+        with open(os.path.join(self.dir['GPLUS'], self.root + '.egofeat'), 'rb') as fp:
             li = fp.readline().strip('\r\n').split(' ')
             index = [num for num, value in enumerate(li) if value == '1']
             logging.debug('%d Ego Feature(s) have been loaded.' % len(index))
             return index
 
     def __edge_list(self):
-        with open(os.path.join(self.dir['SNAP'], self.root + '.edges'), 'rb') as fp:
+        with open(os.path.join(self.dir['GPLUS'], self.root + '.edges'), 'rb') as fp:
             edges = []
             follows_set = set()
             for line in fp.readlines():
@@ -97,7 +97,7 @@ class SnapEgoNet:
             return edges, list(follows_set)
 
     def __follower_list(self):
-        with open(os.path.join(self.dir['SNAP'], self.root + '.followers'), 'rb') as fp:
+        with open(os.path.join(self.dir['GPLUS'], self.root + '.followers'), 'rb') as fp:
             followers = [line.strip() for line in fp.readlines()]
             logging.debug('%d Ego Follower(s) have been loaded.' % len(followers))
             return followers
