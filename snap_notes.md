@@ -10,7 +10,7 @@ Method: unsupervised method to learn which dimension of profile similarity lead 
 
 ## Generative Model For Friendships in Ego Networks 
 
-Circule Formation:
+### Circule Formation:
 
 1. Nodes within circles should have common properties
 
@@ -20,8 +20,14 @@ Circule Formation:
 
 4. It is necessary to leverage both profile information and network structure
 
-Model Description
+### Model Description
 
 ego-network G=(V,E), and center node is not included in G. The goal is to predict a set of circles C, and associated parameter vectors 
+
+### Bayesian Information Criterion BIC
+
+	BIC = -2*ln(L) + k*ln(n)
+
+The model with lowest BIC is preferred
 
 

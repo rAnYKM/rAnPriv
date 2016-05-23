@@ -14,6 +14,7 @@
 import os
 import logging
 import networkx as nx
+import ran_tree as rt
 from ranfig import load_ranfig
 
 
@@ -58,6 +59,36 @@ class FacebookEgoNet:
         logging.debug('%d Nodes, %d Edges in the ego network.'
                       % (ego_net.number_of_nodes(), ego_net.number_of_edges()))
         return ego_net
+
+    def __better_feature_structure(self):
+        """
+        we use rAnTree to represent the feature structure
+        :return: rAnTree
+        """
+        feature_tree = rt.rAnTree()
+        for feature, structure in self.featname:
+            if 'id' in structure:
+                structure.remove('id')
+            feature_tree.add_path(structure)
+        # feature_dict.display()
+        return feature_tree
+
+    def __better_node_feature(self):
+        actors = dict()
+        for n, feat_no in self.node.iteritems():
+            # Initialize the feature tree of a single user
+            actors[n] = self.category.build_dict()
+            for i in feat_no:
+                feat = self.featname[i]
+                name = feat[0]
+                path = feat[1]
+                if 'id' in path:
+                    path.remove('id')
+                if len(path) == 1:
+                    actors[n][path[0]] = name
+                else:
+                    actors[n][path[0]][path[1]] = name
+        return actors
 
     def __feat_name_list(self):
         with open(os.path.join(self.dir['FBOOK'], self.root + '.featnames'), 'rb') as fp:
@@ -126,10 +157,13 @@ class FacebookEgoNet:
         self.egofeat = self.__ego_feat_list()
         self.edges, self.friends = self.__edge_list()
         self.network = self.__build_network()
+        self.category = self.__better_feature_structure()
+        self.actor = self.__better_node_feature()
 
 
 def main():
     fb_net = FacebookEgoNet('0')
+    print fb_net.actor
     fb_net.get_network()
 
 
