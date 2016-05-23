@@ -42,7 +42,7 @@ def load_ranfig():
     computer_name = platform.node()
     config = cp.RawConfigParser()
     config.read(computer_name + '.rfg')
-    gplus_dir = config.get('FILE_DIR', 'GLLUS_DIR')
+    gplus_dir = config.get('FILE_DIR', 'GPLUS_DIR')
     fbook_dir = config.get('FILE_DIR', 'FBOOK_DIR')
     data_dir = config.get('FILE_DIR', 'DATA_DIR')
     out_dir = config.get('FILE_DIR', 'OUT_DIR')
