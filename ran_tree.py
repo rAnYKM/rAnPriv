@@ -37,6 +37,21 @@ class rAnTree:
                 sub_dict[v] = self.__recursive_build(n)
         return sub_dict
 
+    def __recursive_path(self, node, former_path, paths):
+        for v, n in node.children.iteritems():
+            if n.isLeaf:
+                paths.append(former_path + ',' + n.value)
+            else:
+                self.__recursive_path(n, former_path + ',' + n.value, paths)
+
+    def __recursive_root_path(self, node, paths):
+        for v, n in node.children.iteritems():
+            if n.isLeaf:
+                paths.append(n.value)
+            else:
+                self.__recursive_path(n, n.value, paths)
+        return paths
+
     def __recursive_show(self, node):
         print("node %s's children: " % str(node.value))
         for v, n in node.children.iteritems():
@@ -70,6 +85,12 @@ class rAnTree:
     def display(self):
         self.__recursive_show(self.root)
 
+    def get_paths(self):
+        paths = list()
+        self.__recursive_root_path(self.root, paths)
+        return paths
+
+
     def __init__(self):
         self.root = rAnNode(0)
 
@@ -80,6 +101,7 @@ def main():
     t.add('peter', ['jason'])
     t.add('bob', ['jack', 'alice'])
     t.display()
+    print t.get_paths()
 
 if __name__ == '__main__':
     main()

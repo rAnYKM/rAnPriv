@@ -15,6 +15,7 @@ import os
 import logging
 import networkx as nx
 import ran_tree as rt
+from collections import Counter
 from ranfig import load_ranfig
 
 
@@ -50,6 +51,13 @@ class FacebookEgoNet:
         fea = li[1:]
         index = [num for num, value in enumerate(fea) if value == '1']
         return uid, index
+
+    @staticmethod
+    def __parse_path_attribute(act, path):
+        a = act
+        for n in path.split(','):
+            a = a[n]
+        return a
 
     def __build_network(self):
         ego_net = nx.Graph()
@@ -88,6 +96,18 @@ class FacebookEgoNet:
                     actors[n][path[0]] = name
                 else:
                     actors[n][path[0]][path[1]] = name
+        # Do not forget the root node
+        actors[self.root] = self.category.build_dict()
+        for i in self.egofeat:
+            feat = self.featname[i]
+            name = feat[0]
+            path = feat[1]
+            if 'id' in path:
+                path.remove('id')
+            if len(path) == 1:
+                actors[n][path[0]] = name
+            else:
+                actors[n][path[0]][path[1]] = name
         return actors
 
     def __feat_name_list(self):
@@ -123,6 +143,26 @@ class FacebookEgoNet:
             logging.debug('%d Ego Friend(s) have been loaded.' % len(follows_set))
             return edges, list(follows_set)
 
+    def attribute_stat(self):
+        paths = self.category.get_paths()
+        for p in paths:
+            li = [self.__parse_path_attribute(dic, p) for act, dic in self.actor.iteritems()]
+            ctr = Counter(li)
+            print p, ctr
+
+    def better_network(self):
+        network = self.network
+        labels = list()
+        paths = self.category.get_paths()
+        for node in network.nodes_iter():
+            lab = dict()
+            for p in paths:
+                lab[p] = str(self.__parse_path_attribute(self.actor[node], p))
+            labels.append((node, lab))
+        network.add_nodes_from(labels)
+        nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
+        logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
+
     def get_ego_features(self):
         ego_features = [self.featname[feat] for feat in self.egofeat]
         return ego_features
@@ -130,7 +170,7 @@ class FacebookEgoNet:
     def get_network(self, label_with_feature='work'):
         """
         return a undirected network with specific labels
-        :param label_with_feature: String Feature Category 'birthday', 'institution', 'job_title', 'university', 'place'
+        :param label_with_feature: String Feature Category
         :return: nx.Graph
         """
         network = self.network
@@ -148,7 +188,6 @@ class FacebookEgoNet:
         nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
 
-
     def __init__(self, ego_id):
         self.dir = load_ranfig()
         self.root = ego_id
@@ -163,8 +202,9 @@ class FacebookEgoNet:
 
 def main():
     fb_net = FacebookEgoNet('0')
-    print fb_net.actor
-    fb_net.get_network()
+    # fb_net.get_network()
+    # fb_net.attribute_stat()
+    fb_net.better_network()
 
 
 if __name__ == '__main__':
