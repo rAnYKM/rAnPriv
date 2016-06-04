@@ -189,10 +189,9 @@ class FacebookEgoNet:
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
 
     def get_ran(self):
-        network = self.network
+        network = nx.Graph(self.network)
         labels = [(node, {'lab': 'actor'}) for node in network.nodes_iter()]
         attr_labels = [('a' + feat[0], {'lab': '.'.join(feat[1])}) for feat in self.featname]
-
         # Build Relational Attributes
         attr_edge = list()
         for node in network.nodes_iter():
@@ -207,6 +206,10 @@ class FacebookEgoNet:
         # nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-ran.gexf'))
         # logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ran.gexf'))
         return network
+
+    def write_gexf_network(self, net, name):
+        nx.write_gexf(net, os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
+        logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
 
 
     def __init__(self, ego_id):
@@ -226,8 +229,7 @@ def main():
     fb_net = FacebookEgoNet('0')
     # fb_net.get_network()
     # fb_net.attribute_stat()
-    fb_net.get_ran()
-
+    fb_net.write_gexf_network(fb_net.ran, 'ran')
 
 if __name__ == '__main__':
     main()
