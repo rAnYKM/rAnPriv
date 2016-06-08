@@ -24,6 +24,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 class FacebookEgoNet:
     @staticmethod
+    def __abbr_attr(attr):
+        abbr_l = [a[0] for a in attr]
+        return ''.join(abbr_l)
+
+    @staticmethod
     def __feat_process(line):
         """
         Split the raw data into an attribute
@@ -150,6 +155,18 @@ class FacebookEgoNet:
             ctr = Counter(li)
             print p, ctr
 
+    def attribute_correlation(self, source, destination):
+        """
+        Calculate the correlation between source and destination attributes
+        Example: 'a100', 'a200'
+        :param source: string
+        :param destination: string
+        :return: float
+        """
+        neighbor_s = set(self.ran.neighbors(source))
+        neighbor_d = set(self.ran.neighbors(destination))
+        return len(neighbor_s & neighbor_d)/float(len(neighbor_s | neighbor_d))
+
     def better_network(self):
         network = self.network
         labels = list()
@@ -162,6 +179,7 @@ class FacebookEgoNet:
         network.add_nodes_from(labels)
         nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
+
 
     def get_ego_features(self):
         ego_features = [self.featname[feat] for feat in self.egofeat]
@@ -191,7 +209,8 @@ class FacebookEgoNet:
     def get_ran(self):
         network = nx.Graph(self.network)
         labels = [(node, {'lab': 'actor'}) for node in network.nodes_iter()]
-        attr_labels = [('a' + feat[0], {'lab': '.'.join(feat[1])}) for feat in self.featname]
+        attr_labels = [('a' + self.__abbr_attr(feat[1]) + feat[0], {'lab': '.'.join(feat[1])})
+                       for feat in self.featname]
         # Build Relational Attributes
         attr_edge = list()
         for node in network.nodes_iter():
@@ -200,7 +219,7 @@ class FacebookEgoNet:
             else:
                 feature = self.node[node]
             for f in feature:
-                attr_edge.append((node, 'a' + self.featname[f][0]))
+                attr_edge.append((node, 'a' + self.__abbr_attr(self.featname[f][1]) + self.featname[f][0]))
         network.add_edges_from(attr_edge)
         network.add_nodes_from(labels + attr_labels)
         # nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-ran.gexf'))
@@ -210,7 +229,6 @@ class FacebookEgoNet:
     def write_gexf_network(self, net, name):
         nx.write_gexf(net, os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
-
 
     def __init__(self, ego_id):
         self.dir = load_ranfig()
@@ -229,7 +247,11 @@ def main():
     fb_net = FacebookEgoNet('0')
     # fb_net.get_network()
     # fb_net.attribute_stat()
-    fb_net.write_gexf_network(fb_net.ran, 'ran')
+    # print fb_net.get_ego_features()
+    # fb_net.write_gexf_network(fb_net.ran, 'ran')
+    attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
+    cor = {a: fb_net.attribute_correlation(a, 'aes39') for a in attr if fb_net.attribute_correlation(a, 'aes39') > 0.0}
+    print cor
 
 if __name__ == '__main__':
     main()
