@@ -64,6 +64,28 @@ class FacebookEgoNet:
             a = a[n]
         return a
 
+    def __attr_network(self):
+        """
+        Attribute Network involves a set of attribute nodes and correlation edges
+        :return: nx.Graph
+        """
+        attr_net = nx.Graph()
+        nodes = [node for node in self.ran.nodes() if node[0] == 'a']
+        attr_net.add_nodes_from(nodes)
+        for ns in nodes:
+            for nd in nodes:
+                if ns == nd:
+                    continue
+                elif not attr_net.has_edge(ns, nd):
+                    # Calculate the correlation between two attribute nodes
+                    # Jaccard Coefficient
+                    neighbor_s = set(self.ran.neighbors(ns))
+                    neighbor_d = set(self.ran.neighbors(nd))
+                    cor = len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
+                    if cor > 0.0:
+                        attr_net.add_edge(ns, nd, {'weight': cor})
+        return attr_net
+
     def __build_network(self):
         ego_net = nx.Graph()
         ego_net.add_edges_from(self.edges)
@@ -180,7 +202,6 @@ class FacebookEgoNet:
         nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
 
-
     def get_ego_features(self):
         ego_features = [self.featname[feat] for feat in self.egofeat]
         return ego_features
@@ -241,6 +262,7 @@ class FacebookEgoNet:
         self.category = self.__better_feature_structure()
         self.actor = self.__better_node_feature()
         self.ran = self.get_ran()
+        self.attr_net = self.__attr_network()
 
 
 def main():
@@ -249,9 +271,11 @@ def main():
     # fb_net.attribute_stat()
     # print fb_net.get_ego_features()
     # fb_net.write_gexf_network(fb_net.ran, 'ran')
-    attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
-    cor = {a: fb_net.attribute_correlation(a, 'aes39') for a in attr if fb_net.attribute_correlation(a, 'aes39') > 0.0}
-    print cor
+    # attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
+    # cor = {a: fb_net.attribute_correlation(a, 'aes39')
+    # for a in attr if fb_net.attribute_correlation(a, 'aes39') > 0.0}
+    # print cor
+    fb_net.write_gexf_network(fb_net.attr_net, 'attr')
 
 if __name__ == '__main__':
     main()
