@@ -1,3 +1,6 @@
+# Ran File
+*.rfg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
