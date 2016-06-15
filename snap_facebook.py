@@ -15,6 +15,7 @@ import os
 import logging
 import networkx as nx
 import ran_tree as rt
+import numpy as np
 from collections import Counter
 from ranfig import load_ranfig
 
@@ -23,6 +24,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 
 class FacebookEgoNet:
+
     @staticmethod
     def __abbr_attr(attr):
         abbr_l = [a[0] for a in attr]
@@ -33,10 +35,10 @@ class FacebookEgoNet:
         """
         Split the raw data into an attribute
         Example:
-        12 education;classes;id;anonymized feature 12
-        -> 12,['education', 'classes', 'id']
-        :param line:
-        :return:
+        '12 education;classes;id;anonymized feature 12
+        -> 12, ['education', 'classes', 'id']
+        :param line: String
+        :return: feature number, feature root
         """
         fields = line.strip().split(';')
         feat_name = fields[-1].strip('').replace('anonymized feature ', '')
@@ -64,6 +66,41 @@ class FacebookEgoNet:
             a = a[n]
         return a
 
+    @staticmethod
+    def __conditional_prob(set_a, set_b):
+        """
+        return the conditional probability of two sets P(a|b)
+        :param set_a: set
+        :param set_b: set
+        :return: float
+        """
+        return len(set_a & set_b)/float(len(set_b))
+
+    @staticmethod
+    def __joint_prob(set_a, set_b, set_u):
+        """
+        return the joint probability of two sets P(a,b) in the set_u where the elements in set_a
+        and set_b are supposed to be in the set_u. Otherwise, return 0.
+        :param set_a: set
+        :param set_b: set
+        :param set_u: set
+        :return: float
+        """
+        if set_a <= set_u and set_b <= set_u:
+            return len(set_a & set_b)/float(len(set_u))
+        else:
+            return 0
+
+    @staticmethod
+    def __conditional_entropy(set_a, set_b):
+        """
+        return the conditional entropy of two sets H(a|b). It means the uncertainty of a given b.
+        :param set_a: set
+        :param set_b: set
+        :return: float
+        """
+        return np.log2(len(set_a & set_b)/float(len(set_b)))
+
     def __attr_network(self):
         """
         Attribute Network involves a set of attribute nodes and correlation edges
@@ -84,6 +121,27 @@ class FacebookEgoNet:
                     cor = len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
                     if cor > 0.0:
                         attr_net.add_edge(ns, nd, {'weight': cor})
+        return attr_net
+
+    def __attr_di_network(self):
+        attr_net = nx.DiGraph()
+        nodes = [node for node in self.ran.nodes() if node[0] == 'a']
+        attr_net.add_nodes_from(nodes)
+        for ns in nodes:
+            for nd in nodes:
+                if ns == nd:
+                    continue
+                elif not attr_net.has_edge(ns, nd):
+                    # Calculate the correlation between two attribute nodes
+                    # Conditional Probability
+                    neighbor_s = set(self.ran.neighbors(ns))
+                    neighbor_d = set(self.ran.neighbors(nd))
+                    cor1 = self.__conditional_prob(neighbor_d, neighbor_s)
+                    cor2 = self.__conditional_prob(neighbor_s, neighbor_d)
+                    if cor1 > 0.0:
+                        attr_net.add_edge(ns, nd, {'weight': cor1})
+                    if cor2 > 0.0:
+                        attr_net.add_edge(nd, ns, {'weight': cor2})
         return attr_net
 
     def __build_network(self):
@@ -202,6 +260,26 @@ class FacebookEgoNet:
         nx.write_gexf(network, os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-friend.gexf'))
 
+    def prob_given_feature(self, secret, feature):
+        """
+        Given a feature list, return the probability of owning a secret.
+        :param secret: string
+        :param feature: list
+        :return: float
+        """
+        set_f = set()
+        first = True
+        for f in feature:
+            if first:
+                set_f = set(self.ran.neighbors(f))
+                first = False
+            else:
+                set_f &= set(self.ran.neighbors(f))
+                if len(set_f) == 0:
+                    return 0
+        set_s = set(self.ran.neighbors(secret))
+        return self.__conditional_prob(set_f, set_s)
+
     def get_ego_features(self):
         ego_features = [self.featname[feat] for feat in self.egofeat]
         return ego_features
@@ -247,6 +325,23 @@ class FacebookEgoNet:
         # logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ran.gexf'))
         return network
 
+    def secret_analysis(self, secret):
+        """
+        return the correlations dict of a given secret (private attribute)
+        :param secret: string
+        :return: dict
+        """
+        secret_related = self.attr_di_net.successors(secret)
+        return {i: self.attribute_correlation(i, secret) for i in secret_related}
+
+    def complete_disclosure_rate(self):
+        """
+        compare the new ran graph with the original one to obtain the disclosure_rate
+        :return: float
+        """
+        # TODO: finish the complete disclosure rate calculation
+        return 0
+
     def write_gexf_network(self, net, name):
         nx.write_gexf(net, os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
         logging.debug('Network Generated in %s' % os.path.join(self.dir['OUT'], self.root + '-ego-' + name + '.gexf'))
@@ -263,19 +358,21 @@ class FacebookEgoNet:
         self.actor = self.__better_node_feature()
         self.ran = self.get_ran()
         self.attr_net = self.__attr_network()
+        self.attr_di_net = self.__attr_di_network()
 
 
 def main():
     fb_net = FacebookEgoNet('0')
     # fb_net.get_network()
-    # fb_net.attribute_stat()
-    # print fb_net.get_ego_features()
+    fb_net.attribute_stat()
+    print fb_net.get_ego_features()
     # fb_net.write_gexf_network(fb_net.ran, 'ran')
     # attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
     # cor = {a: fb_net.attribute_correlation(a, 'aes39')
     # for a in attr if fb_net.attribute_correlation(a, 'aes39') > 0.0}
     # print cor
-    fb_net.write_gexf_network(fb_net.attr_net, 'attr')
+    # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
+    print fb_net.secret_analysis('aes50')
 
 if __name__ == '__main__':
     main()
