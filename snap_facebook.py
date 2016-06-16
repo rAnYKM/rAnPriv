@@ -238,7 +238,6 @@ class FacebookEgoNet:
     def attribute_correlation(self, source, destination):
         """
         Calculate the correlation between source and destination attributes
-        Example: 'a100', 'a200'
         :param source: string
         :param destination: string
         :return: float
