@@ -99,7 +99,7 @@ class RanGraph:
 
     def __build_di_attr_net(self):
         attr_net = nx.DiGraph()
-        nodes = [node for node in self.ran.nodes() if node[0] == 'a']
+        nodes = [node for node in self.soc_attr_net.nodes() if node[0] == 'a']
         attr_net.add_nodes_from(nodes)
         for ns in nodes:
             for nd in nodes:
@@ -108,8 +108,8 @@ class RanGraph:
                 elif not attr_net.has_edge(ns, nd):
                     # Calculate the correlation between two attribute nodes
                     # Conditional Probability
-                    neighbor_s = set(self.ran.neighbors(ns))
-                    neighbor_d = set(self.ran.neighbors(nd))
+                    neighbor_s = set(self.soc_attr_net.neighbors(ns))
+                    neighbor_d = set(self.soc_attr_net.neighbors(nd))
                     cor1 = self.__conditional_prob(neighbor_d, neighbor_s)
                     cor2 = self.__conditional_prob(neighbor_s, neighbor_d)
                     if cor1 > 0.0:
@@ -126,6 +126,63 @@ class RanGraph:
         net.add_nodes_from(soc_node + attr_node)
         net.add_edges_from(soc_edge + attr_edge)
         return net
+
+    def attribute_correlation(self, source, destination):
+        """
+        Calculate the correlation between source and destination attributes
+        :param source: string
+        :param destination: string
+        :return: float
+        """
+        neighbor_s = set(self.soc_attr_net.neighbors(source))
+        neighbor_d = set(self.soc_attr_net.neighbors(destination))
+        return len(neighbor_s & neighbor_d)/float(len(neighbor_s | neighbor_d))
+
+    def secret_analysis(self, secret):
+        """
+        return the correlations dict of a given secret (private attribute)
+        :param secret: string
+        :return: dict
+        """
+        secret_related = self.di_attr_net.successors(secret)
+        return {i: self.attribute_correlation(i, secret) for i in secret_related}
+
+    def secret_disclosure_rate(self, secret):
+        """
+        compare the new ran graph with the original one to obtain the disclosure_rate
+        :return: float
+        """
+        # TODO: finish the complete disclosure rate calculation
+        pgf = []
+        f_pgf = []
+        for soc in self.soc_attr_net.nodes_iter():
+            feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
+                       if node[0] == 'a' and node != secret]
+            rate = self.prob_given_feature(secret, feature)
+            if self.soc_attr_net.has_edge(soc, secret):
+                pgf.append(rate)
+        print pgf
+        return 1
+
+    def prob_given_feature(self, secret, feature):
+        """
+        Given a feature list, return the probability of owning a secret.
+        :param secret: string
+        :param feature: list
+        :return: float
+        """
+        set_f = set(self.soc_net.nodes())
+        first = True
+        for f in feature:
+            if first:
+                set_f = set(self.soc_attr_net.neighbors(f))
+                first = False
+            else:
+                set_f &= set(self.soc_attr_net.neighbors(f))
+                if len(set_f) == 0:
+                    return 0
+        set_s = set(self.soc_attr_net.neighbors(secret))
+        return self.__conditional_prob(set_s, set_f)
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         if is_directed:
