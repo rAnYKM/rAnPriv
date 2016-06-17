@@ -154,14 +154,21 @@ class RanGraph:
         """
         # TODO: finish the complete disclosure rate calculation
         pgf = []
-        f_pgf = []
-        for soc in self.soc_attr_net.nodes_iter():
+        for soc in self.soc_net.nodes_iter():
             feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
                        if node[0] == 'a' and node != secret]
             rate = self.prob_given_feature(secret, feature)
             if self.soc_attr_net.has_edge(soc, secret):
                 pgf.append(rate)
         print pgf
+
+        pgn = []
+        for soc in self.soc_net.nodes_iter():
+            neighbor = [node for node in self.soc_net.neighbors_iter(soc)]
+            rate = self.prob_given_feature(secret, neighbor)
+            if self.soc_attr_net.has_edge(soc, secret):
+                pgn.append(rate)
+        print pgn
         return 1
 
     def prob_given_feature(self, secret, feature):
@@ -179,6 +186,26 @@ class RanGraph:
                 first = False
             else:
                 set_f &= set(self.soc_attr_net.neighbors(f))
+                if len(set_f) == 0:
+                    return 0
+        set_s = set(self.soc_attr_net.neighbors(secret))
+        return self.__conditional_prob(set_s, set_f)
+
+    def prob_given_neighbor(self, secret, neighbor):
+        """
+        Given a feature list, return the probability of owning a secret.
+        :param secret: string
+        :param neighbor: list
+        :return: float
+        """
+        set_f = set(self.soc_net.nodes())
+        first = True
+        for f in neighbor:
+            if first:
+                set_f = set(self.soc_net.neighbors(f))
+                first = False
+            else:
+                set_f &= set(self.soc_net.neighbors(f))
                 if len(set_f) == 0:
                     return 0
         set_s = set(self.soc_attr_net.neighbors(secret))
