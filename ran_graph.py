@@ -13,6 +13,7 @@
 
 import networkx as nx
 import numpy as np
+from random import Random
 
 
 class RanGraph:
@@ -43,6 +44,8 @@ class RanGraph:
         :param set_b: set
         :return: float
         """
+        if len(set_b) == 0:
+            return 0
         return len(set_a & set_b) / float(len(set_b))
 
     @staticmethod
@@ -92,7 +95,10 @@ class RanGraph:
                     # Jaccard Coefficient
                     neighbor_s = set(self.soc_attr_net.neighbors(ns))
                     neighbor_d = set(self.soc_attr_net.neighbors(nd))
-                    cor = len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
+                    if len(neighbor_s | neighbor_d) == 0:
+                        cor = 0
+                    else:
+                        cor = len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
                     if cor > 0.0:
                         attr_net.add_edge(ns, nd, {'weight': cor})
         return attr_net
@@ -138,6 +144,22 @@ class RanGraph:
         neighbor_d = set(self.soc_attr_net.neighbors(destination))
         return len(neighbor_s & neighbor_d)/float(len(neighbor_s | neighbor_d))
 
+    def random_mask(self, secret, mask_ratio = 0.1):
+        """
+
+        :param mask_ratio:
+        :return: RanGraph
+        """
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        a = Random()
+        soc_edge = [edge for edge in self.soc_edge if a.random() >= mask_ratio]
+        attr_edge = [edge for edge in self.attr_edge
+                     if edge[1] == secret or a.random() >= mask_ratio]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        print new_ran.secret_disclosure_rate(secret)
+        return new_ran
+
     def secret_analysis(self, secret):
         """
         return the correlations dict of a given secret (private attribute)
@@ -170,6 +192,18 @@ class RanGraph:
                 pgn.append(rate)
         print pgn
         return 1
+
+    def secret_attack(self, secret, attack_graph):
+        pgf = []
+        for soc in self.soc_net.nodes_iter():
+            feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
+                       if node[0] == 'a' and node != secret]
+            att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
+            rate = self.prob_given_feature(secret, feature)
+            att_rate = attack_graph.prob_given_feature(secret, att_feature)
+            if self.soc_attr_net.has_edge(soc, secret):
+                pgf.append(rate - att_rate)
+        print pgf
 
     def prob_given_feature(self, secret, feature):
         """
@@ -216,6 +250,10 @@ class RanGraph:
             self.is_directed = True
         else:
             self.is_directed = False
+        self.soc_node = soc_node
+        self.attr_node = attr_node
+        self.soc_edge = soc_edge
+        self.attr_edge = attr_edge
         self.soc_net = self.__build_soc_net(soc_node, soc_edge)
         self.soc_attr_net = self.__build_soc_attr_net(soc_node, attr_node, soc_edge, attr_edge)
         """

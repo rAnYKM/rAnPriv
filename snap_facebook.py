@@ -265,6 +265,8 @@ def main():
     # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
     # print fb_net.ran.secret_analysis('aes50')
     print fb_net.ran.secret_disclosure_rate('aes50')
+    nran = fb_net.ran.random_mask('aes50', 0.5)
+    fb_net.ran.secret_attack('aes50', nran)
 
 if __name__ == '__main__':
     main()
