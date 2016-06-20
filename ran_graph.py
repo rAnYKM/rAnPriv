@@ -202,8 +202,9 @@ class RanGraph:
             rate = self.prob_given_feature(secret, feature)
             att_rate = attack_graph.prob_given_feature(secret, att_feature)
             if self.soc_attr_net.has_edge(soc, secret):
-                pgf.append(rate - att_rate)
+                pgf.append(att_rate)
         print pgf
+        return np.average(pgf)
 
     def prob_given_feature(self, secret, feature):
         """
