@@ -1,10 +1,23 @@
-
+# Project Name: rAnPrivGP
+# Author: rAnYKM (Jiayi Chen)
+#
+#          ___          ____       _       __________
+#    _____/   |  ____  / __ \_____(_)   __/ ____/ __ \
+#   / ___/ /| | / __ \/ /_/ / ___/ / | / / / __/ /_/ /
+#  / /  / ___ |/ / / / ____/ /  / /| |/ / /_/ / ____/
+# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/\____/_/
+#
+# Script Name: ran_graph.py
+# Date: June. 18, 2016
 
 
 import networkx as nx
 import numpy as np
+import logging
 from random import Random
 from ran_knapsack import knapsack
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class RanGraph:
@@ -26,6 +39,7 @@ class RanGraph:
         Google+ example:
         job_title software => ajsoftware
     """
+
     @staticmethod
     def __conditional_prob(set_a, set_b):
         """
@@ -132,13 +146,25 @@ class RanGraph:
         """
         neighbor_s = set(self.soc_attr_net.neighbors(source))
         neighbor_d = set(self.soc_attr_net.neighbors(destination))
-        return len(neighbor_s & neighbor_d)/float(len(neighbor_s | neighbor_d))
+        return len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
 
     def obtain_set(self, features):
         set_r = set(self.soc_net.nodes())
         for f in features:
             set_r &= set([n for n in self.soc_attr_net.neighbors(f)])
         return set_r
+
+    def random_sampling(self, sampling=0.1):
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        a = Random()
+        soc_edge = [edge for edge in self.soc_edge if a.random() <= sampling]
+        attr_edge = [edge for edge in self.attr_edge
+                     if a.random() <= sampling]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        attr_conceal = len(self.attr_edge) - len(attr_edge)
+        logging.debug("Random Sampling: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
+        return new_ran
 
     def random_mask(self, secret, mask_ratio=0.1):
         """
@@ -152,35 +178,38 @@ class RanGraph:
         a = Random()
         soc_edge = [edge for edge in self.soc_edge if a.random() >= mask_ratio]
         attr_edge = [edge for edge in self.attr_edge
-                     if edge[1] == secret or a.random() >= mask_ratio]
+                     if edge[1] == secret or (self.soc_attr_net.has_edge(edge[0], secret) and a.random() >= mask_ratio)]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
-        print new_ran.secret_disclosure_rate(secret)
+        attr_conceal = len(self.attr_edge) - len(attr_edge)
+        logging.debug("Random Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
         return new_ran
 
     def knapsack_mask(self, secret, epsilon=0.5):
+        """
+        return a sub graph with knapsack mask algorithm
+        :param secret: string
+        :param epsilon: float
+        :return: RanGraph
+        """
         soc_node = self.soc_net.nodes()
         attr_node = self.attr_net.nodes()
         soc_edge = self.soc_edge
         attr_edge = []
-        ctr = 0
         w_set = set([n for n in self.soc_attr_net.neighbors(secret)])
-        print len(w_set)
         for n in soc_node:
             if not self.soc_attr_net.has_edge(n, secret):
                 attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
             else:
                 fn = [i for i in self.soc_attr_net.neighbors(n)
-                        if i[0] == 'a']
+                      if i[0] == 'a']
                 feat = [(1, set(self.soc_attr_net.neighbors(i))) for i in self.soc_attr_net.neighbors(n)
                         if i[0] == 'a']
                 val, sel = knapsack(feat, epsilon, w_set, set(self.soc_net.nodes()))
                 attr_edge += [(n, fn[i]) for i in sel]
                 attr_edge.append((n, secret))
-                ctr += 1
-                if ctr % 10 == 0:
-                    print ctr
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
-        print new_ran.secret_disclosure_rate(secret)
+        logging.debug("Knapsack Masking: %d/%d attribute edges removed"
+                      % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran
 
     def secret_analysis(self, secret):
@@ -204,18 +233,14 @@ class RanGraph:
                        if node[0] == 'a' and node != secret]
             rate = self.prob_given_feature(secret, feature)
             if self.soc_attr_net.has_edge(soc, secret):
-                # print soc
                 pgf.append(rate)
-        print pgf
-
         pgn = []
         for soc in self.soc_net.nodes_iter():
             neighbor = [node for node in self.soc_net.neighbors_iter(soc)]
             rate = self.prob_given_feature(secret, neighbor)
             if self.soc_attr_net.has_edge(soc, secret):
                 pgn.append(rate)
-        print pgn
-        return 1
+        return pgf, pgn
 
     def secret_attack(self, secret, attack_graph):
         pgf = []

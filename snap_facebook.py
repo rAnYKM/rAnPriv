@@ -256,8 +256,8 @@ class FacebookEgoNet:
 def main():
     fb_net = FacebookEgoNet('0')
     # fb_net.get_network()
-    fb_net.attribute_stat()
-    print fb_net.get_ego_features()
+    # fb_net.attribute_stat()
+    # print fb_net.get_ego_features()
     # fb_net.write_gexf_network(fb_net.ran, 'ran')
     # attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
     # cor = {a: fb_net.attribute_correlation(a, 'aes39')
@@ -266,8 +266,8 @@ def main():
     # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
     # print fb_net.ran.secret_analysis('aes50')
     print fb_net.ran.secret_disclosure_rate('aes50')
-    att_ran = fb_net.ran.random_mask('aes50', 0.5)
-    def_ran = fb_net.ran.random_mask('aes50', 0.5)
+    att_ran = fb_net.ran.random_sampling(0.8)
+    def_ran = fb_net.ran.random_mask('aes50', 0.4)
     print def_ran.secret_attack('aes50', att_ran)
     print fb_net.ran.secret_attack('aes50', att_ran)
     # print fb_net.ran.soc_attr_net['5']
@@ -281,7 +281,7 @@ def main():
     x = fb_net.ran.obtain_set(['al127', 'aet53', 'ag78', 'al118'])
     print x, [fb_net.ran.soc_attr_net.has_edge(n, 'aes50') for n in x]
     """
-    good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.5)
+    good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
     print good_def_ran.secret_attack('aes50', att_ran)
 
 if __name__ == '__main__':
