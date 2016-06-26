@@ -295,6 +295,10 @@ class RanGraph:
         set_s = set(self.soc_attr_net.neighbors(secret))
         return self.__conditional_prob(set_s, set_f)
 
+    def sub_graph(self, secret, soc_nodes, attr_nodes):
+        # TODO: Generate a sub-graph
+        return 0
+
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         if is_directed:
             self.is_directed = True

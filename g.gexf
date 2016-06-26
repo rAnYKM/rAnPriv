@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<gexf version="1.1" xmlns="http://www.gexf.net/1.1draft" xmlns:viz="http://www.gexf.net/1.1draft/viz" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.w3.org/2001/XMLSchema-instance">
+  <graph defaultedgetype="undirected" mode="static">
+    <nodes>
+      <node id="a1" label="a1" />
+      <node id="a0" label="a0" />
+      <node id="n8" label="n8" />
+      <node id="n9" label="n9" />
+      <node id="a3" label="a3" />
+      <node id="a2" label="a2" />
+      <node id="a5" label="a5" />
+      <node id="a4" label="a4" />
+      <node id="n0" label="n0" />
+      <node id="n1" label="n1" />
+      <node id="n2" label="n2" />
+      <node id="n3" label="n3" />
+      <node id="n4" label="n4" />
+      <node id="n5" label="n5" />
+      <node id="n6" label="n6" />
+      <node id="n7" label="n7" />
+    </nodes>
+    <edges>
+      <edge id="0" source="a1" target="n9" weight="1.0" />
+      <edge id="1" source="a1" target="n2" weight="1.0" />
+      <edge id="2" source="a1" target="n4" weight="1.0" />
+      <edge id="3" source="a1" target="n7" weight="0.666666666667" />
+      <edge id="4" source="a0" target="n8" weight="1.0" />
+      <edge id="5" source="a0" target="n0" weight="1.0" />
+      <edge id="6" source="a0" target="n1" weight="1.0" />
+      <edge id="7" source="a0" target="n3" weight="1.0" />
+      <edge id="8" source="a0" target="n5" weight="1.0" />
+      <edge id="9" source="a0" target="n6" weight="1.0" />
+      <edge id="10" source="n8" target="a3" />
+      <edge id="11" source="n8" target="a2" />
+      <edge id="12" source="n8" target="a5" />
+      <edge id="13" source="n8" target="a4" />
+      <edge id="14" source="n8" target="n0" />
+      <edge id="15" source="n8" target="n3" />
+      <edge id="16" source="n8" target="n5" />
+      <edge id="17" source="n9" target="a3" />
+      <edge id="18" source="n9" target="a2" />
+      <edge id="19" source="n9" target="a5" />
+      <edge id="20" source="n9" target="n2" />
+      <edge id="21" source="n9" target="n3" />
+      <edge id="22" source="n9" target="n6" />
+      <edge id="23" source="a3" target="n1" />
+      <edge id="24" source="a3" target="n5" />
+      <edge id="25" source="a3" target="n6" />
+      <edge id="26" source="a2" target="n0" />
+      <edge id="27" source="a2" target="n2" />
+      <edge id="28" source="a2" target="n3" />
+      <edge id="29" source="a2" target="n4" />
+      <edge id="30" source="a2" target="n6" />
+      <edge id="31" source="a5" target="n1" />
+      <edge id="32" source="a5" target="n5" />
+      <edge id="33" source="a4" target="n0" />
+      <edge id="34" source="a4" target="n2" />
+      <edge id="35" source="a4" target="n3" />
+      <edge id="36" source="a4" target="n4" />
+      <edge id="37" source="a4" target="n7" />
+      <edge id="38" source="n0" target="n1" />
+      <edge id="39" source="n0" target="n2" />
+      <edge id="40" source="n0" target="n4" />
+      <edge id="41" source="n0" target="n5" />
+      <edge id="42" source="n1" target="n2" />
+      <edge id="43" source="n1" target="n3" />
+      <edge id="44" source="n1" target="n5" />
+      <edge id="45" source="n1" target="n6" />
+      <edge id="46" source="n2" target="n4" />
+      <edge id="47" source="n2" target="n7" />
+      <edge id="48" source="n3" target="n5" />
+      <edge id="49" source="n4" target="n5" />
+      <edge id="50" source="n4" target="n6" />
+      <edge id="51" source="n5" target="n7" />
+    </edges>
+  </graph>
+</gexf>

@@ -256,7 +256,7 @@ class FacebookEgoNet:
 def main():
     fb_net = FacebookEgoNet('0')
     # fb_net.get_network()
-    # fb_net.attribute_stat()
+    fb_net.attribute_stat()
     # print fb_net.get_ego_features()
     # fb_net.write_gexf_network(fb_net.ran, 'ran')
     # attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
