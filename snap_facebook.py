@@ -10,7 +10,6 @@
 # Script Name: snap_facebook.py
 # Date: May. 18, 2016
 
-
 import os
 import logging
 import networkx as nx
@@ -282,6 +281,7 @@ def main():
     print x, [fb_net.ran.soc_attr_net.has_edge(n, 'aes50') for n in x]
     """
     good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
+    # edge_def_ran = fb_net.ran.knapsack_relation('aes50', 0.7)
     print good_def_ran.secret_attack('aes50', att_ran)
 
 if __name__ == '__main__':

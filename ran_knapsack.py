@@ -57,3 +57,43 @@ def knapsack(items, max_weight, set_s, whole_set):
             # j -= items[i - 1][1]
     result.reverse()
     return best_value(len(items), max_weight, whole_set), result
+
+def lp_solution(wp, vp, items, c, l):
+    cp = c - wp
+    val = 0
+    wei = 0
+    for i in xrange(l - 1, len(items), 1):
+        if wei + items[i][1] <= cp:
+            wei += items[i][1]
+            val += items[i][0]
+        else:
+            break
+    return val + vp
+
+def branch_and_bound(items, max_weight):
+
+    def bnb(l, z, x, xp):
+        weight = 0
+        value = 0
+        for i in xrange(0, l - 1, 1):
+            weight += items[i][1]*xp[i]
+        if weight > max_weight:
+            return z, x
+        for i in xrange(0, l - 1, 1):
+            value += items[i][0]*xp[i]
+        if value > z:
+            z = value
+            x = xp
+        if l > len(items):
+            return z, x
+        ux = lp_solution(weight, value, items, max_weight, l)
+        if ux > z:
+            xp[l] = 0
+            z, x = bnb(l + 1, z, x, xp)
+            xp[l] = 1
+            z, x = bnb(l + 1, z, x, xp)
+        return z, x
+
+
+
+

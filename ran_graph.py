@@ -212,6 +212,34 @@ class RanGraph:
                       % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran
 
+    def knapsack_relation(self, secret, epsilon=0.5):
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        tmp_graph = self.soc_net
+        attr_edge = self.attr_edge
+        w_set = set([n for n in self.soc_attr_net.neighbors(secret)])
+        ctr = 0
+        for n in soc_node:
+            if not self.soc_attr_net.has_edge(n, secret):
+                continue
+            else:
+                fn = [i for i in self.soc_net.neighbors(n)]
+                logging.debug("FN SIZE: %d" % len(fn))
+                feat = [(1, set(self.soc_net.neighbors(i))) for i in self.soc_net.neighbors(n)]
+                val, sel = knapsack(feat, epsilon, w_set, set(self.soc_net.nodes()))
+                for i in range(len(fn)):
+                    if i not in sel and tmp_graph.has_edge(n, fn[i]):
+                        tmp_graph.remove_edge(n, fn[i])
+                # attr_edge.append((n, secret))
+                ctr += 1
+                if ctr % 10 == 0:
+                    print ctr
+        new_ran = RanGraph(soc_node, attr_node, tmp_graph.edges(), attr_edge)
+        logging.debug("Knapsack Relation Masking: %d/%d relations removed"
+                      % (len(self.soc_edge) - tmp_graph.edges(), len(self.soc_edge)))
+        return new_ran
+
+
     def secret_analysis(self, secret):
         """
         return the correlations dict of a given secret (private attribute)
