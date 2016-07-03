@@ -204,6 +204,39 @@ class MultiDimensionalKnapsack:
                 queue.append(nv)
         return max_value, max_sel
 
+    def greedy_solver(self, metrics='direct'):
+        def exceed_weights(w, max_w):
+            for i in xrange(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def reduce_weights(w, max_w):
+            return [max_w[i] - w[i] for i in xrange(len(w))]
+
+        def increase_weights(w, max_w):
+            return [max_w[i] + w[i] for i in xrange(len(w))]
+
+        if metrics == 'direct':
+            ratio = lambda p, w, c: p/float(sum(w))
+        elif metrics == 'scale':
+            ratio = lambda p, w, c: p/float(sum([j/float(c[i]) for i, j in enumerate(w)]))
+        else:
+            print "ERROR: no such metrics"
+            return
+        greedy_items = sorted(self.items, key=lambda tup: ratio(tup[1], tup[2], self.max_weights), reverse=True)
+        weight = [0]*len(self.max_weights)
+        value = 0
+        sel = []
+        for item in greedy_items:
+            if exceed_weights(increase_weights(weight, item[2]), self.max_weights):
+                continue
+            else:
+                weight = increase_weights(weight, item[2])
+                value += item[1]
+                sel.append(item)
+        return value, sel
+
 
 def test():
     # items = [(0, 4, 12), (1, 2, 1), (2, 6, 4), (3, 1, 1), (4, 2, 2)]
@@ -215,11 +248,13 @@ def test():
 
     m_items = [(0, 5, (1, 2, 3)), (1, 3, (3, 1, 1)), (2, 8, (5, 1, 1)), (3, 2, (2, 2, 2)),
                (4, 4, (1, 5, 1)), (5, 10, (6, 2, 3))]
-    m_weights = [8, 8, 8]
+    m_weights = [9, 10, 7]
     mkp = MultiDimensionalKnapsack(m_items, m_weights)
     print mkp.sorted_items
     print mkp.dp_solver()
     print mkp.bnb_solver()
+    print mkp.greedy_solver('scale')
+    print mkp.greedy_solver('direct')
 
 if __name__ == '__main__':
     test()

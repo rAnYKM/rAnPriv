@@ -16,6 +16,7 @@ import numpy as np
 import logging
 from random import Random
 from ran_knapsack import knapsack
+from ran_kp import MultiDimensionalKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -212,6 +213,25 @@ class RanGraph:
                       % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran
 
+    def d_knapsack_mask(self, secrets, epsilon):
+        """
+        return a sub graph
+        :param secrets: dict
+        :param epsilon: dict
+        :return: RanGraph
+        """
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge =self.soc_edge
+        attr_edge = []
+        for n in soc_node:
+            if len(secrets[n]) == 0:
+                attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
+            else:
+                require = epsilon[n]
+                # TODO: FINISH THE MULTIDIMENSIONAL KNAPSACK PROBLEM
+
+
     def knapsack_relation(self, secret, epsilon=0.5):
         soc_node = self.soc_net.nodes()
         attr_node = self.attr_net.nodes()
@@ -238,7 +258,6 @@ class RanGraph:
         logging.debug("Knapsack Relation Masking: %d/%d relations removed"
                       % (len(self.soc_edge) - tmp_graph.edges(), len(self.soc_edge)))
         return new_ran
-
 
     def secret_analysis(self, secret):
         """
