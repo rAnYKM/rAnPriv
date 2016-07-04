@@ -280,9 +280,20 @@ def main():
     x = fb_net.ran.obtain_set(['al127', 'aet53', 'ag78', 'al118'])
     print x, [fb_net.ran.soc_attr_net.has_edge(n, 'aes50') for n in x]
     """
-    good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
+    # good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
     # edge_def_ran = fb_net.ran.knapsack_relation('aes50', 0.7)
-    print good_def_ran.secret_attack('aes50', att_ran)
+    # print good_def_ran.secret_attack('aes50', att_ran)
+    secret = dict()
+    epsilon = dict()
+    for i in fb_net.ran.soc_net.nodes():
+        if fb_net.ran.soc_attr_net.has_edge(i, 'aes50'):
+            secret[i] = ['aes50']
+            epsilon[i] = [1.5]
+        else:
+            secret[i] = []
+            epsilon[i] = []
+
+    fb_net.ran.d_knapsack_mask(secret, epsilon)
 
 if __name__ == '__main__':
     main()

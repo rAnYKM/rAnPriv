@@ -213,6 +213,14 @@ class RanGraph:
                       % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran
 
+    def mutual_information(self, attr_a, attr_b):
+        w_set = set(self.soc_net.nodes())
+        a_set = set([n for n in self.soc_attr_net.neighbors(attr_a) if n[0] != 'a'])
+        b_set = set([n for n in self.soc_attr_net.neighbors(attr_b) if n[0] != 'a'])
+        value = self.__conditional_prob(a_set, b_set)
+        value /= len(a_set)/float(len(w_set))
+        return np.log2(value)
+
     def d_knapsack_mask(self, secrets, epsilon):
         """
         return a sub graph
@@ -224,13 +232,24 @@ class RanGraph:
         attr_node = self.attr_node
         soc_edge =self.soc_edge
         attr_edge = []
-        for n in soc_node:
+        for n in self.soc_net.nodes():
+            print n
             if len(secrets[n]) == 0:
                 attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
             else:
-                require = epsilon[n]
+                eps = epsilon[n]
                 # TODO: FINISH THE MULTIDIMENSIONAL KNAPSACK PROBLEM
-
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.soc_attr_net.neighbors(n)
+                      if i[0] == 'a' and i not in secrets[n]]
+                items = list()
+                for a in fn:
+                    weight = tuple([self.mutual_information(a, s) for s in secrets[n]])
+                    items.append((a, 1, weight))
+                    # 1 is the value
+                print MultiDimensionalKnapsack(items, eps).dp_solver()
+                print MultiDimensionalKnapsack(items, eps).greedy_solver('scale')
+                break
 
     def knapsack_relation(self, secret, epsilon=0.5):
         soc_node = self.soc_net.nodes()
