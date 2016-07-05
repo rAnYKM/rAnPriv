@@ -12,12 +12,14 @@
 
 import os
 import logging
+import matplotlib.pyplot as plt
 import networkx as nx
 import ran_tree as rt
 from collections import Counter
 from ranfig import load_ranfig
 from ran_graph import RanGraph
 from ran_knapsack import knapsack
+
 
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -265,8 +267,8 @@ def main():
     # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
     # print fb_net.ran.secret_analysis('aes50')
     print fb_net.ran.secret_disclosure_rate('aes50')
-    att_ran = fb_net.ran.random_sampling(0.8)
-    def_ran = fb_net.ran.random_mask('aes50', 0.4)
+    att_ran = fb_net.ran.random_sampling(0.6)
+    def_ran = fb_net.ran.random_mask('aes50', 0.6)
     print def_ran.secret_attack('aes50', att_ran)
     print fb_net.ran.secret_attack('aes50', att_ran)
     # print fb_net.ran.soc_attr_net['5']
@@ -292,8 +294,13 @@ def main():
         else:
             secret[i] = []
             epsilon[i] = []
-
-    fb_net.ran.d_knapsack_mask(secret, epsilon)
+    greedy = fb_net.ran.d_knapsack_mask(secret, epsilon)
+    greedy2 = greedy.d_knapsack_relation(secret, epsilon)
+    _, res = def_ran.inference_attack_relation(secret, att_ran)
+    _, res2 = fb_net.ran.inference_attack_relation(secret, att_ran)
+    print res, res2
+    print greedy2.inference_attack(secret, att_ran)
+    print greedy2.inference_attack_relation(secret, att_ran)
 
 if __name__ == '__main__':
     main()
