@@ -12,14 +12,11 @@
 
 import os
 import logging
-import matplotlib.pyplot as plt
 import networkx as nx
 import ran_tree as rt
 from collections import Counter
 from ranfig import load_ranfig
 from ran_graph import RanGraph
-from ran_knapsack import knapsack
-
 
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -29,8 +26,8 @@ class FacebookEgoNet:
 
     @staticmethod
     def __abbr_attr(attr):
-        abbr_l = [a[0] for a in attr]
-        return ''.join(abbr_l)
+        abbr_l = [a[0] + a[-1] for a in attr]
+        return ''.join(abbr_l) + '-'
 
     @staticmethod
     def __feat_process(line):
@@ -266,30 +263,20 @@ def main():
     # print cor
     # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
     # print fb_net.ran.secret_analysis('aes50')
-    print fb_net.ran.secret_disclosure_rate('aes50')
+    print fb_net.ran.secret_disclosure_rate('aensl-50')
     att_ran = fb_net.ran.random_sampling(0.6)
-    def_ran = fb_net.ran.random_mask('aes50', 0.6)
-    print def_ran.secret_attack('aes50', att_ran)
-    print fb_net.ran.secret_attack('aes50', att_ran)
+    def_ran = fb_net.ran.random_mask(['aensl-50'], 0.6)
+    print def_ran.secret_attack('aensl-50', att_ran)
+    print fb_net.ran.secret_attack('aensl-50', att_ran)
     # print fb_net.ran.soc_attr_net['5']
-    """Knapsack Test
-    feat = [(1, set(fb_net.ran.soc_attr_net.neighbors(n))) for n in fb_net.ran.soc_attr_net.neighbors('50')
-            if n[0] == 'a']
-    print [n for n in fb_net.ran.soc_attr_net.neighbors('50')
-            if n[0] == 'a']
-    w_set = set([n for n in fb_net.ran.soc_attr_net.neighbors('aes50')])
-    print knapsack(feat, 0.5, w_set, set(fb_net.ran.soc_net.nodes()))
-    x = fb_net.ran.obtain_set(['al127', 'aet53', 'ag78', 'al118'])
-    print x, [fb_net.ran.soc_attr_net.has_edge(n, 'aes50') for n in x]
-    """
     # good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
     # edge_def_ran = fb_net.ran.knapsack_relation('aes50', 0.7)
     # print good_def_ran.secret_attack('aes50', att_ran)
     secret = dict()
     epsilon = dict()
     for i in fb_net.ran.soc_net.nodes():
-        if fb_net.ran.soc_attr_net.has_edge(i, 'aes50'):
-            secret[i] = ['aes50']
+        if fb_net.ran.soc_attr_net.has_edge(i, 'aensl-50'):
+            secret[i] = ['aensl-50']
             epsilon[i] = [1.5]
         else:
             secret[i] = []

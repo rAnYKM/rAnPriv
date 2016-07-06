@@ -36,9 +36,9 @@ class RanGraph:
     Attribute Naming:
     'a' + ABBR. of PATH + feature name
         Facebook example:
-        education start_date 30 => aes30
+        education start_date 30 => aense_30
         Google+ example:
-        job_title software => ajsoftware
+        job_title software => aje_software
     """
 
     @staticmethod
@@ -169,9 +169,29 @@ class RanGraph:
                       (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
         return new_ran
 
+    def random_masking(self, secrets, mask_ratio):
+        """
+        return a sub graph with random mask algorithm for several secrets
+        :param secrets: dict
+        :param mask_ratio: float
+        :return: RanGraph
+        """
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        a = Random()
+        soc_edge = [edge for edge in self.soc_edge if a.random() >= mask_ratio]
+        attr_edge = [edge for edge in self.attr_edge
+                     if edge[1] in secrets[edge[0]] or (len(secrets[edge[0]]) != 0 and a.random() >= mask_ratio)]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("Random Masking: %d/%d attribute edges removed" %
+                      (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        logging.debug("Random Masking: %d/%d social relations removed" %
+                      (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
+        return new_ran
+
     def random_mask(self, secret, mask_ratio=0.1):
         """
-        return a sub graph with random mask algorithm
+        return a sub graph with random mask algorithm (for single secret)
         :param secret: string
         :param mask_ratio: float
         :return: RanGraph
@@ -218,6 +238,12 @@ class RanGraph:
         return new_ran
 
     def mutual_information(self, attr_a, attr_b):
+        """
+        Return the mutual information between two attribtues
+        :param attr_a: string
+        :param attr_b: string
+        :return: float
+        """
         w_set = set(self.soc_net.nodes())
         a_set = set([n for n in self.soc_attr_net.neighbors(attr_a) if n[0] != 'a'])
         b_set = set([n for n in self.soc_attr_net.neighbors(attr_b) if n[0] != 'a'])
@@ -227,14 +253,14 @@ class RanGraph:
 
     def d_knapsack_mask(self, secrets, epsilon):
         """
-        return a sub graph
+        return a sub graph with satisfying epsilon-privacy
         :param secrets: dict
         :param epsilon: dict
         :return: RanGraph
         """
         soc_node = self.soc_node
         attr_node = self.attr_node
-        soc_edge =self.soc_edge
+        soc_edge = self.soc_edge
         attr_edge = []
         for n in self.soc_net.nodes():
             if len(secrets[n]) == 0:
@@ -261,6 +287,12 @@ class RanGraph:
         return new_ran
 
     def d_knapsack_relation(self, secrets, epsilon):
+        """
+        return a sub graph with satisfying epsilon-privacy for relation masking
+        :param secrets: dict
+        :param epsilon: dict
+        :return: RanGraph
+        """
         soc_node = self.soc_node
         attr_node = self.attr_node
         soc_edge = []
@@ -290,12 +322,12 @@ class RanGraph:
         return new_ran
 
     def knapsack_relation(self, secret, epsilon=0.5):
+        # WARNING: BE CAREFUL WITH USING THIS FUNCTION
         soc_node = self.soc_net.nodes()
         attr_node = self.attr_net.nodes()
         tmp_graph = self.soc_net
         attr_edge = self.attr_edge
         w_set = set([n for n in self.soc_attr_net.neighbors(secret)])
-        ctr = 0
         for n in soc_node:
             if not self.soc_attr_net.has_edge(n, secret):
                 continue
@@ -327,7 +359,6 @@ class RanGraph:
         compare the new ran graph with the original one to obtain the disclosure_rate
         :return: float
         """
-        # TODO: finish the complete disclosure rate calculation
         pgf = []
         for soc in self.soc_net.nodes_iter():
             feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
@@ -362,11 +393,17 @@ class RanGraph:
             attr_disclosure[soc] = rates
             relation = [node for node in self.soc_net.neighbors_iter(soc)]
             r_rates = {secret: self.prob_given_feature(secret, relation)
-                     for secret in secrets[soc]}
+                       for secret in secrets[soc]}
             edge_disclosure[soc] = r_rates
         return attr_disclosure, edge_disclosure
 
     def inference_attack(self, secrets, attack_graph):
+        """
+        This function simulates the inference attack on several secrets from an attack_graph
+        :param secrets: dict
+        :param attack_graph: RanGraph
+        :return: dict, float
+        """
         attack_res = dict()
         for soc in self.soc_net.nodes_iter():
             if len(secrets[soc]) == 0:
@@ -377,16 +414,23 @@ class RanGraph:
             att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
             #          for secret in secrets[soc]}
-            att_rates = {secret: self.prob_given_feature(secret, att_feature)
-                     for secret in secrets[soc]}
+            att_rates = {secret: attack_graph.prob_given_feature(secret, att_feature)
+                         for secret in secrets[soc]}
             attack_res[soc] = att_rates
         all_number = list()
-        for _, j in attack_res.iteritems():
-            for _, k in j.iteritems():
+        for j in attack_res.itervalues():
+            for k in j.itervalues():
                 all_number.append(k)
         return attack_res, np.average(all_number)
 
     def inference_attack_relation(self, secrets, attack_graph):
+        """
+        This function simulates the inference attack on several secrets from an attack_graph
+        VIA social relation information
+        :param secrets: dict
+        :param attack_graph: RanGraph
+        :return: dict, float
+        """
         attack_res = dict()
         for soc in self.soc_net.nodes_iter():
             if len(secrets[soc]) == 0:
@@ -396,22 +440,28 @@ class RanGraph:
             att_feature = [node for node in relation if attack_graph.soc_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
             #          for secret in secrets[soc]}
-            att_rates = {secret: self.prob_given_feature(secret, att_feature)
+            att_rates = {secret: attack_graph.prob_given_feature(secret, att_feature)
                          for secret in secrets[soc]}
             attack_res[soc] = att_rates
         all_number = list()
-        for _, j in attack_res.iteritems():
-            for _, k in j.iteritems():
+        for j in attack_res.itervalues():
+            for k in j.itervalues():
                 all_number.append(k)
         return attack_res, np.average(all_number)
 
     def secret_attack(self, secret, attack_graph):
-        pgf = []
+        """
+        This function simulate the single secret attack from the attack graph
+        :param secret: string
+        :param attack_graph: RanGraph
+        :return: float
+        """
+        pgf = list()
         for soc in self.soc_net.nodes_iter():
             feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
                        if node[0] == 'a' and node != secret]
             att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
-            rate = self.prob_given_feature(secret, feature)
+            # rate = self.prob_given_feature(secret, feature)
             att_rate = attack_graph.prob_given_feature(secret, att_feature)
             if self.soc_attr_net.has_edge(soc, secret):
                 pgf.append(att_rate)
