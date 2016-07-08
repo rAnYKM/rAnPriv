@@ -24,6 +24,7 @@ def experiment(data, secret_cate, ar, dr, e):
     # Build secret dict
     secrets = dict()
     epsilon = dict()
+    ep2 = dict()
     for node in fb.ran.soc_net.nodes():
         feature = [attr for attr in fb.ran.soc_attr_net.neighbors(node)
                    if attr[0] == 'a']
@@ -32,20 +33,30 @@ def experiment(data, secret_cate, ar, dr, e):
         epsilon[node] = [np.log2(e) -
                          np.log2(len(fb.ran.soc_attr_net.neighbors(a))/float(fb.ran.soc_net.number_of_nodes()))
                          for a in secret]
+        ep2[node] = [e] * len(secret)
     att_ran = fb.ran.random_sampling(ar)
     def_ran = fb.ran.random_masking(secrets, dr)
     greedy = fb.ran.d_knapsack_mask(secrets, epsilon)
     greedy2 = greedy.d_knapsack_relation(secrets, epsilon)
-    print def_ran.inference_attack(secrets, def_ran)
-    print greedy.inference_attack(secrets, greedy)
+    s_good, tp1 = fb.ran.s_knapsack_mask(secrets, ep2, 'dp')
+    s_greedy, tp2 = fb.ran.s_knapsack_mask(secrets, ep2, 'greedy')
+    # def_ran.inference_attack(secrets, def_ran)
+    # greedy.inference_attack(secrets, greedy)
     _, res = fb.ran.inference_attack(secrets, att_ran)
     _, res2 = def_ran.inference_attack(secrets, att_ran)
     _, res4 = def_ran.inference_attack_relation(secrets, att_ran)
     _, res3 = fb.ran.inference_attack_relation(secrets, att_ran)
     _, res5 = greedy.inference_attack(secrets, att_ran)
     _, res6 = greedy2.inference_attack_relation(secrets, att_ran)
-    print res, res2, res3, res4, res5, res6
+    a, res7 = s_good.inference_attack(secrets, fb.ran, e)
+    b, res8 = s_greedy.inference_attack(secrets, fb.ran, e)
+    print res, res2, res3, res4, res5, res6, res7, res8
+    # print a, b
+    for i in range(len(tp1)):
+        if tp1[i][0] != tp2[i][0]:
+            print tp1[i], tp2[i]
+
 
 if __name__ == '__main__':
     sec = ['aensl', 'aencn']
-    experiment('0', sec, 0.7, 0.3, 1)
+    experiment('0', sec, 1, 1, 0.5)

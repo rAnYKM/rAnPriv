@@ -277,7 +277,7 @@ def main():
     for i in fb_net.ran.soc_net.nodes():
         if fb_net.ran.soc_attr_net.has_edge(i, 'aensl-50'):
             secret[i] = ['aensl-50']
-            epsilon[i] = [1.5]
+            epsilon[i] = [0.5]
         else:
             secret[i] = []
             epsilon[i] = []

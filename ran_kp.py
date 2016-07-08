@@ -246,9 +246,6 @@ class MultiDimensionalKnapsack:
                     return True
             return False
 
-        def reduce_weights(w, max_w):
-            return [max_w[i] - w[i] for i in xrange(len(w))]
-
         def increase_weights(w, max_w):
             return [max_w[i] + w[i] for i in xrange(len(w))]
 
@@ -271,6 +268,126 @@ class MultiDimensionalKnapsack:
                 value += item[1]
                 sel.append(item)
         return value, sel
+
+
+class SetKnapsack:
+    """
+    Knapsack-like problem with non-linear constraints form
+    Pr(S|A(x)) <= max_weight
+    """
+    def __init__(self, u_set, s_sets, items, max_weights):
+        """
+        initialize
+        items ->
+            id, value, set
+        :param u_set: the universal set
+        :param s_sets: a list of sets
+        :param items: a list of tuple
+        :param max_weights: a list of float
+        """
+        self.u_set = u_set
+        self.s_sets = s_sets
+        self.items = items
+        self.max_weights = max_weights
+
+    def dp_solver(self):
+        def get_weight(set_a, s_sets):
+            res_li = list()
+            for set_s in s_sets:
+                if len(set_a) == 0:
+                    print "if you see this, something probably goes wrong"
+                    return None
+                res_li.append(len(set_a & set_s) / float(len(set_a)))
+            return res_li
+
+        def exceed_weights(w, max_w):
+            for n in xrange(len(w)):
+                if w[n] > max_w[n]:
+                    return True
+            return False
+
+        def best_value(p, q, res):
+            if p == 0:
+                return 0
+            _, value, w_set = self.items[p - 1]
+            weight = get_weight(w_set & res, self.s_sets)
+            if exceed_weights(weight, q):
+                return best_value(p - 1, q, res)
+            else:
+                return max(best_value(p - 1, q, res),
+                           best_value(p - 1, q, res & w_set) + value)
+
+        j = self.max_weights
+        result = []
+        res_set = set(self.u_set)
+        items = self.items
+        for i in xrange(len(items), 0, -1):
+            if best_value(i, j, res_set) != best_value(i - 1, j, res_set):
+                # result.append(items[i - 1])
+                result.append(items[i - 1][0])
+                res_set &= items[i - 1][2]
+                # print best_value(i - 1, j, res), result, res
+                # j -= items[i - 1][1]
+        result.reverse()
+        return best_value(len(items), self.max_weights, set(self.u_set)), result
+
+    def greedy_solver(self):
+        def get_weight(set_a, s_sets):
+            result = list()
+            for set_s in s_sets:
+                if len(set_a) == 0:
+                    print "if you see this, something probably goes wrong"
+                    return None
+                result.append(len(set_a & set_s) / float(len(set_a)))
+            # print len(result), result,
+            return result
+
+        def exceed_weights(w, max_w):
+            for i in xrange(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def find_max(l, cs):
+            ratio = lambda p, w, c: p / float(sum([j / float(c[i]) for i, j in enumerate(w)]))
+            first = True
+            max_pw = -1
+            sel = -1
+            g_weights = list()
+            for i in l:
+                weights = get_weight(self.items[i][2] & cs, self.s_sets)
+                pw = ratio(self.items[i][1], weights, self.max_weights)
+                if pw < 0:
+                    print "miracle"
+                if first:
+                    first = False
+                    max_pw = pw
+                    sel = i
+                    g_weights = weights
+                    continue
+                if max_pw < 0:
+                    if pw < max_pw:
+                        sel = i
+                        max_pw = pw
+                        g_weights = weights
+                elif pw > max_pw:
+                    sel = i
+                    max_pw = pw
+                    g_weights = weights
+            return sel, g_weights
+
+        li = range(len(self.items))
+        c_set = set(self.u_set)
+        res = []
+        best_value = 0
+        while li:
+            choose, new_weight = find_max(li, c_set)
+            if not exceed_weights(new_weight, self.max_weights):
+                res.append(self.items[choose][0])
+                c_set &= self.items[choose][2]
+                best_value += self.items[choose][1]
+            li.pop(li.index(choose))
+        return best_value, res
 
 
 def test():

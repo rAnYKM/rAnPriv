@@ -16,7 +16,7 @@ import numpy as np
 import logging
 from random import Random
 from ran_knapsack import knapsack
-from ran_kp import MultiDimensionalKnapsack
+from ran_kp import MultiDimensionalKnapsack, SetKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -251,6 +251,25 @@ class RanGraph:
         value /= len(a_set)/float(len(w_set))
         return np.log2(value)
 
+    def normalized_mutual_information(self, attr_a, attr_b, mode='ran'):
+        """
+        Return the mutual information between two attribtues
+        :param attr_a: string
+        :param attr_b: string
+        :param mode: string
+        :return: float
+        """
+        w_set = set(self.soc_net.nodes())
+        a_set = set([n for n in self.soc_attr_net.neighbors(attr_a) if n[0] != 'a'])
+        b_set = set([n for n in self.soc_attr_net.neighbors(attr_b) if n[0] != 'a'])
+        if w_set & a_set != a_set:
+            logging.error("set a is not the subset of the whole set")
+        if mode == 'ran':
+            v = -np.log2(len(a_set)/float(len(w_set)))
+        else:
+            v = np.sqrt(np.log2(len(a_set)/float(len(w_set)))*np.log2(len(b_set)/float(len(w_set))))
+        return self.mutual_information(attr_a, attr_b)/v
+
     def d_knapsack_mask(self, secrets, epsilon):
         """
         return a sub graph with satisfying epsilon-privacy
@@ -285,6 +304,43 @@ class RanGraph:
         logging.debug("d-Knapsack Masking: %d/%d attribute edges removed"
                       % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran
+
+    def s_knapsack_mask(self, secrets, epsilon, mode='dp'):
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = self.soc_edge
+        attr_edge = []
+        tmp_res = []
+        for n in self.soc_net.nodes():
+            if len(secrets[n]) == 0:
+                attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
+            else:
+                eps = epsilon[n]
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.soc_attr_net.neighbors(n)
+                      if i[0] == 'a' and i not in secrets[n]]
+                items = list()
+                for a in fn:
+                    weight = set([i for i in self.soc_attr_net.neighbors(a)])
+                    items.append((a, 1, weight))
+                s_set = [set([i for i in self.soc_attr_net.neighbors(s)]) for s in secrets[n]]
+                    # 1 is the value
+                # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
+                # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
+                # val, sel = MultiDimensionalKnapsack(items, eps).greedy_solver('scale')
+                if mode == 'dp':
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dp_solver()
+                    tmp_res.append((val, sel))
+                else:
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
+                    tmp_res.append((val, sel))
+                    # print val, sel
+                attr_edge += [(n, attr) for attr in sel]
+                attr_edge += [(n, attr) for attr in secrets[n]]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("s-Knapsack Masking (%s): %d/%d attribute edges removed"
+                      % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        return new_ran, tmp_res
 
     def d_knapsack_relation(self, secrets, epsilon):
         """
@@ -354,7 +410,7 @@ class RanGraph:
         secret_related = self.di_attr_net.successors(secret)
         return {i: self.attribute_correlation(i, secret) for i in secret_related}
 
-    def secret_disclosure_rate(self, secret):
+    def secret_disclosure_rate(self, secret, self_error_rate=1):
         """
         compare the new ran graph with the original one to obtain the disclosure_rate
         :return: float
@@ -364,12 +420,16 @@ class RanGraph:
             feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
                        if node[0] == 'a' and node != secret]
             rate = self.prob_given_feature(secret, feature)
+            if rate > self_error_rate:
+                print "+1 exceeds"
             if self.soc_attr_net.has_edge(soc, secret):
                 pgf.append(rate)
         pgn = []
         for soc in self.soc_net.nodes_iter():
             neighbor = [node for node in self.soc_net.neighbors_iter(soc)]
             rate = self.prob_given_feature(secret, neighbor)
+            if rate > self_error_rate:
+                print "+1 exceeds"
             if self.soc_attr_net.has_edge(soc, secret):
                 pgn.append(rate)
         return pgf, pgn
@@ -397,7 +457,7 @@ class RanGraph:
             edge_disclosure[soc] = r_rates
         return attr_disclosure, edge_disclosure
 
-    def inference_attack(self, secrets, attack_graph):
+    def inference_attack(self, secrets, attack_graph, self_error_rate=1):
         """
         This function simulates the inference attack on several secrets from an attack_graph
         :param secrets: dict
@@ -405,6 +465,7 @@ class RanGraph:
         :return: dict, float
         """
         attack_res = dict()
+        ctr = list()
         for soc in self.soc_net.nodes_iter():
             if len(secrets[soc]) == 0:
                 # No secrets
@@ -416,11 +477,13 @@ class RanGraph:
             #          for secret in secrets[soc]}
             att_rates = {secret: attack_graph.prob_given_feature(secret, att_feature)
                          for secret in secrets[soc]}
+            ctr += [i for i in att_rates.itervalues() if i > self_error_rate]
             attack_res[soc] = att_rates
         all_number = list()
         for j in attack_res.itervalues():
             for k in j.itervalues():
                 all_number.append(k)
+        print "exceed number: %d" % (len(ctr))
         return attack_res, np.average(all_number)
 
     def inference_attack_relation(self, secrets, attack_graph):
