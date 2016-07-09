@@ -19,7 +19,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 
 def experiment(data, secret_cate, ar, dr, e):
-    print "hello world"
     fb = FacebookEgoNet(data)
     # Build secret dict
     secrets = dict()
@@ -51,12 +50,14 @@ def experiment(data, secret_cate, ar, dr, e):
     a, res7 = s_good.inference_attack(secrets, fb.ran, e)
     b, res8 = s_greedy.inference_attack(secrets, fb.ran, e)
     print res, res2, res3, res4, res5, res6, res7, res8
-    # print a, b
+    print a, b
+    """
     for i in range(len(tp1)):
         if tp1[i][0] != tp2[i][0]:
             print tp1[i], tp2[i]
+    """
 
 
 if __name__ == '__main__':
     sec = ['aensl', 'aencn']
-    experiment('0', sec, 1, 1, 0.5)
+    experiment('0', sec, 0.8, 1, 0.1)

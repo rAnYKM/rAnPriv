@@ -470,7 +470,7 @@ class RanGraph:
             if len(secrets[soc]) == 0:
                 # No secrets
                 continue
-            feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
+            feature = [node for node in self.soc_attr_net.neighbors(soc)
                        if node[0] == 'a' and node not in secrets[soc]]
             att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
@@ -483,7 +483,8 @@ class RanGraph:
         for j in attack_res.itervalues():
             for k in j.itervalues():
                 all_number.append(k)
-        print "exceed number: %d" % (len(ctr))
+        if len(ctr) > 0:
+            logging.debug("(exposed nodes) exceed number: %d" % (len(ctr)))
         return attack_res, np.average(all_number)
 
     def inference_attack_relation(self, secrets, attack_graph):

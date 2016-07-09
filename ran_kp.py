@@ -350,27 +350,13 @@ class SetKnapsack:
 
         def find_max(l, cs):
             ratio = lambda p, w, c: p / float(sum([j / float(c[i]) for i, j in enumerate(w)]))
-            first = True
             max_pw = -1
             sel = -1
             g_weights = list()
             for i in l:
                 weights = get_weight(self.items[i][2] & cs, self.s_sets)
                 pw = ratio(self.items[i][1], weights, self.max_weights)
-                if pw < 0:
-                    print "miracle"
-                if first:
-                    first = False
-                    max_pw = pw
-                    sel = i
-                    g_weights = weights
-                    continue
-                if max_pw < 0:
-                    if pw < max_pw:
-                        sel = i
-                        max_pw = pw
-                        g_weights = weights
-                elif pw > max_pw:
+                if pw > max_pw:
                     sel = i
                     max_pw = pw
                     g_weights = weights
