@@ -13,6 +13,7 @@
 
 import collections
 import functools
+import numpy as np
 
 
 class memoized(object):
@@ -375,6 +376,58 @@ class SetKnapsack:
             li.pop(li.index(choose))
         return best_value, res
 
+    def dual_greedy_solver(self):
+        def get_weight(set_a, s_sets):
+            result = list()
+            for set_s in s_sets:
+                if len(set_a) == 0:
+                    print "if you see this, something probably goes wrong"
+                    return None
+                result.append(len(set_a & set_s) / float(len(set_a)))
+            # print len(result), result,
+            return result
+
+        def exceed_weights(w, max_w):
+            for i in xrange(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def reduce_weights(a, b):
+            return [a[i] - b[i] for i in xrange(len(a))]
+
+        def find_min(l, fw):
+            ratio = lambda p, w, c: p / float(sum([(m + 1) / float(c[n]) for n, m in enumerate(w)]))
+            min_pw = np.inf
+            sel = -1
+            g_weights = list()
+            for i in l:
+                us = set(self.u_set)
+                for j in l:
+                    if i != j:
+                        us &= self.items[j][2]
+                weights = get_weight(us, self.s_sets)
+                r_weights = reduce_weights(fw, weights)
+                pw = ratio(self.items[i][1], r_weights, self.max_weights)
+                if pw < min_pw:
+                    sel = i
+                    min_pw = pw
+                    g_weights = weights
+            return sel, g_weights
+
+        li = range(len(self.items))
+        res = [i[0] for i in self.items]
+        best_value = sum([i[1] for i in self.items])
+        hl = set(self.u_set)
+        for its in self.items:
+            hl &= its[2]
+        new_weight = get_weight(hl, self.s_sets)
+        while li and exceed_weights(new_weight, self.max_weights):
+            choose, new_weight = find_min(li, new_weight)
+            res.pop(res.index(self.items[choose][0]))
+            best_value -= self.items[choose][1]
+            li.pop(li.index(choose))
+        return best_value, res
 
 def test():
     # items = [(0, 4, 12), (1, 2, 1), (2, 6, 4), (3, 1, 1), (4, 2, 2)]

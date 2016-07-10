@@ -331,10 +331,17 @@ class RanGraph:
                 if mode == 'dp':
                     val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dp_solver()
                     tmp_res.append((val, sel))
-                else:
+                elif mode == 'greedy':
                     val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
                     tmp_res.append((val, sel))
                     # print val, sel
+                elif mode == 'dual_greedy':
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dual_greedy_solver()
+                    # val2, sel2 = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
+                    # print val, val2
+                    # print sel, sel2
+                    tmp_res.append((val, sel))
+                    # break
                 attr_edge += [(n, attr) for attr in sel]
                 attr_edge += [(n, attr) for attr in secrets[n]]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)

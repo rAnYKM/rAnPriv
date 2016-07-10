@@ -39,6 +39,7 @@ def experiment(data, secret_cate, ar, dr, e):
     greedy2 = greedy.d_knapsack_relation(secrets, epsilon)
     s_good, tp1 = fb.ran.s_knapsack_mask(secrets, ep2, 'dp')
     s_greedy, tp2 = fb.ran.s_knapsack_mask(secrets, ep2, 'greedy')
+    s_dual, tp3 = fb.ran.s_knapsack_mask(secrets, ep2, 'dual_greedy')
     # def_ran.inference_attack(secrets, def_ran)
     # greedy.inference_attack(secrets, greedy)
     _, res = fb.ran.inference_attack(secrets, att_ran)
@@ -49,8 +50,9 @@ def experiment(data, secret_cate, ar, dr, e):
     _, res6 = greedy2.inference_attack_relation(secrets, att_ran)
     a, res7 = s_good.inference_attack(secrets, fb.ran, e)
     b, res8 = s_greedy.inference_attack(secrets, fb.ran, e)
-    print res, res2, res3, res4, res5, res6, res7, res8
-    print a, b
+    c, res9 = s_dual.inference_attack(secrets, fb.ran, e)
+    print res, res2, res3, res4, res5, res6, res7, res8, res9
+    print a, b, c
     """
     for i in range(len(tp1)):
         if tp1[i][0] != tp2[i][0]:
@@ -60,4 +62,4 @@ def experiment(data, secret_cate, ar, dr, e):
 
 if __name__ == '__main__':
     sec = ['aensl', 'aencn']
-    experiment('0', sec, 0.8, 1, 0.1)
+    experiment('0', sec, 0.8, 1, 0.5)
