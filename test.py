@@ -34,12 +34,13 @@ def experiment(data, secret_cate, ar, dr, e):
                          for a in secret]
         ep2[node] = [e] * len(secret)
     att_ran = fb.ran.random_sampling(ar)
-    def_ran = fb.ran.random_masking(secrets, dr)
-    greedy = fb.ran.d_knapsack_mask(secrets, epsilon)
+    def_ran, stat1, _ = fb.ran.adv_random_masking(secrets, ep2)
+    greedy, stat2 = fb.ran.d_knapsack_mask(secrets, epsilon)
     greedy2 = greedy.d_knapsack_relation(secrets, epsilon)
-    s_good, tp1 = fb.ran.s_knapsack_mask(secrets, ep2, 'dp')
-    s_greedy, tp2 = fb.ran.s_knapsack_mask(secrets, ep2, 'greedy')
-    s_dual, tp3 = fb.ran.s_knapsack_mask(secrets, ep2, 'dual_greedy')
+    s_good, stat3 = fb.ran.s_knapsack_mask(secrets, ep2, 'dp')
+    s_greedy, stat4 = fb.ran.s_knapsack_mask(secrets, ep2, 'greedy')
+    s_dual, stat5= fb.ran.s_knapsack_mask(secrets, ep2, 'dual_greedy')
+    # s_gual, tp4 = fb.ran.s_knapsack_mask(secrets, ep2, 'dual_dp')
     # def_ran.inference_attack(secrets, def_ran)
     # greedy.inference_attack(secrets, greedy)
     _, res = fb.ran.inference_attack(secrets, att_ran)
@@ -48,18 +49,39 @@ def experiment(data, secret_cate, ar, dr, e):
     _, res3 = fb.ran.inference_attack_relation(secrets, att_ran)
     _, res5 = greedy.inference_attack(secrets, att_ran)
     _, res6 = greedy2.inference_attack_relation(secrets, att_ran)
-    a, res7 = s_good.inference_attack(secrets, fb.ran, e)
-    b, res8 = s_greedy.inference_attack(secrets, fb.ran, e)
-    c, res9 = s_dual.inference_attack(secrets, fb.ran, e)
+    _, res7 = s_good.inference_attack(secrets, att_ran, e)
+    _, res8 = s_greedy.inference_attack(secrets, att_ran, e)
+    _, res9 = s_dual.inference_attack(secrets, att_ran, e)
+    # d, res10 = s_gual.inference_attack(secrets, fb.ran, e)
     print res, res2, res3, res4, res5, res6, res7, res8, res9
-    print a, b, c
+    # print a, b
     """
     for i in range(len(tp1)):
         if tp1[i][0] != tp2[i][0]:
             print tp1[i], tp2[i]
     """
+    stat = [stat1, stat2, stat3, stat4, stat5]
+    ress = [res2, res5, res7, res8, res9]
+    reff = res
+    return stat, ress, reff
 
+def data_record(xs, ys, filename):
+    with open(filename, 'w') as fp:
+        for x in xs:
+            fp.write(' '.join([str(i) for i in x]) + '\n')
+        fp.write('\n')
+        for y in ys:
+            fp.write(' '.join([str(i) for i in y]) + '\n')
 
 if __name__ == '__main__':
     sec = ['aensl', 'aencn']
-    experiment('0', sec, 0.8, 1, 0.5)
+    s1 = []
+    s2 = []
+    s3 = []
+    for i in np.arange(0.05, 1, 0.05):
+        print i
+        stat, ress, reff = experiment('0', sec, 1, 1, i)
+        s1.append(stat)
+        s2.append(ress)
+    data_record([np.arange(0.05, 1, 0.05)], s1, 'edge_reduce.txt')
+    data_record([np.arange(0.05, 1, 0.05)], s2, 'performance.txt')

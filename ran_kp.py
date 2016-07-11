@@ -251,9 +251,9 @@ class MultiDimensionalKnapsack:
             return [max_w[i] + w[i] for i in xrange(len(w))]
 
         if metrics == 'direct':
-            ratio = lambda p, w, c: p/float(sum(w))
+            ratio = lambda p, w, c: p/float(sum(w) + 1)
         elif metrics == 'scale':
-            ratio = lambda p, w, c: p/float(sum([j/float(c[i]) for i, j in enumerate(w)]))
+            ratio = lambda p, w, c: p/float(sum([j/float(c[i]) for i, j in enumerate(w)]) + 1)
         else:
             print "ERROR: no such metrics"
             return
@@ -332,6 +332,53 @@ class SetKnapsack:
         result.reverse()
         return best_value(len(items), self.max_weights, set(self.u_set)), result
 
+    def dual_dp_solver(self):
+        def get_weight(set_a, s_sets):
+            res_li = list()
+            for set_s in s_sets:
+                if len(set_a) == 0:
+                    print "if you see this, something probably goes wrong"
+                    return None
+                res_li.append(len(set_a & set_s) / float(len(set_a)))
+            return res_li
+
+        def exceed_weights(w, max_w):
+            for n in xrange(len(w)):
+                if w[n] > max_w[n]:
+                    return True
+            return False
+
+        def best_value(p, q, cs, mv):
+            if p == 0:
+                return 0
+            _, value, w_set = self.items[p - 1]
+            us = set(self.u_set)
+            for it in cs:
+                if it != p - 1:
+                    us &= self.items[it][2]
+            weight = get_weight(us, self.s_sets)
+            lis = [it for it in cs if it != p - 1]
+            if exceed_weights(weight, q):
+                return max(best_value(p - 1, q, lis, mv - value),
+                           best_value(p - 1, q, list(cs), mv))
+            else:
+                return max(best_value(p - 1, q, list(cs), mv),
+                           mv - value)
+
+        j = self.max_weights
+        items = self.items
+        max_value = sum([i[1] for i in self.items])
+        selected = range(len(items))
+        for i in xrange(len(items), 0, -1):
+            if best_value(i, j, selected, max_value) != best_value(i - 1, j, selected, max_value):
+                # result.append(items[i - 1])
+                selected.remove(i - 1)
+                # print best_value(i - 1, j, res), result, res
+                # j -= items[i - 1][1]
+        result = [items[it][0] for it in selected]
+        # print result
+        return best_value(len(items), self.max_weights, range(len(items)), max_value), result
+
     def greedy_solver(self):
         def get_weight(set_a, s_sets):
             result = list()
@@ -397,7 +444,7 @@ class SetKnapsack:
             return [a[i] - b[i] for i in xrange(len(a))]
 
         def find_min(l, fw):
-            ratio = lambda p, w, c: p / float(sum([(m + 1) / float(c[n]) for n, m in enumerate(w)]))
+            ratio = lambda p, w, c: p * float(sum([m / float(c[n]) for n, m in enumerate(w)]) + 1)
             min_pw = np.inf
             sel = -1
             g_weights = list()
@@ -407,7 +454,7 @@ class SetKnapsack:
                     if i != j:
                         us &= self.items[j][2]
                 weights = get_weight(us, self.s_sets)
-                r_weights = reduce_weights(fw, weights)
+                r_weights = reduce_weights(weights, self.max_weights)
                 pw = ratio(self.items[i][1], r_weights, self.max_weights)
                 if pw < min_pw:
                     sel = i
