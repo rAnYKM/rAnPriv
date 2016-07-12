@@ -29,7 +29,7 @@ def July10_01():
         plt.savefig("test.eps", format="eps")
 
 def July10_02():
-    with open('performance.txt', 'r') as fp:
+    with open('performance_different_attacker.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -40,11 +40,11 @@ def July10_02():
         print x, y
 
         lines = plt.plot(x, y, linewidth=1.5)
-        plt.axis([0.05, 0.95, 0.5, 0.52], fontsize=14)
+        plt.axis([0.05, 0.95, 0, 0.52], fontsize=14)
         plt.xlabel(r'Security Threshold', fontsize=16)
         plt.ylabel(r'Percentage of Masked Attributes', fontsize=16)
         plt.xticks(np.arange(0.05, 1, 0.1))
-        plt.yticks(np.arange(0.2, 0.55, 0.05))
+        plt.yticks(np.arange(0, 0.55, 0.05))
         plt.legend(lines, ('Random Mask', 'd-KP', 'DP', 'Primal-greedy', 'Dual-greedy'), loc='upper left')
         plt.grid(True)
         plt.show()

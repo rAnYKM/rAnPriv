@@ -149,6 +149,15 @@ class RanGraph:
         neighbor_d = set(self.soc_attr_net.neighbors(destination))
         return len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
 
+    def utility_measure(self, secrets, prices):
+        scores = dict()
+        for n in self.soc_net.nodes():
+            fn = [i for i in self.soc_attr_net.neighbors(n)
+                  if i[0] == 'a' and i not in secrets[n]]
+            score = sum([prices[i] for i in fn])
+            scores[n] = score
+        return scores, sum(scores.itervalues())
+
     def obtain_set(self, features):
         set_r = set(self.soc_net.nodes())
         for f in features:
@@ -315,7 +324,7 @@ class RanGraph:
             v = np.sqrt(np.log2(len(a_set) / float(len(w_set))) * np.log2(len(b_set) / float(len(w_set))))
         return self.mutual_information(attr_a, attr_b) / v
 
-    def d_knapsack_mask(self, secrets, epsilon):
+    def d_knapsack_mask(self, secrets, price, epsilon):
         """
         return a sub graph with satisfying epsilon-privacy
         :param secrets: dict
@@ -337,7 +346,7 @@ class RanGraph:
                 items = list()
                 for a in fn:
                     weight = tuple([self.mutual_information(a, s) for s in secrets[n]])
-                    items.append((a, 1, weight))
+                    items.append((a, price[a], weight))
                     # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
                 # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
@@ -349,15 +358,19 @@ class RanGraph:
                       % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
-    def s_knapsack_mask(self, secrets, epsilon, mode='dp'):
+    def s_knapsack_mask(self, secrets, price, epsilon, mode='dp'):
         soc_node = self.soc_node
         attr_node = self.attr_node
         soc_edge = self.soc_edge
         attr_edge = []
         tmp_res = []
+        # oth_res = []
         for n in self.soc_net.nodes():
             if len(secrets[n]) == 0:
                 attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
+                # oth_res.append(sum([price[attr]
+                #                     for attr in self.soc_attr_net.neighbors(n)
+                #                     if attr[0] == 'a']))
             else:
                 eps = epsilon[n]
                 # Calculate the weight between secrets and attributes
@@ -366,7 +379,7 @@ class RanGraph:
                 items = list()
                 for a in fn:
                     weight = set([i for i in self.soc_attr_net.neighbors(a)])
-                    items.append((a, 1, weight))
+                    items.append((a, price[a], weight))
                 s_set = [set([i for i in self.soc_attr_net.neighbors(s)]) for s in secrets[n]]
                 # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
@@ -392,11 +405,14 @@ class RanGraph:
                 attr_edge += [(n, attr) for attr in sel]
                 attr_edge += [(n, attr) for attr in secrets[n]]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        # sco = sum([i[0] for i in tmp_res]) + sum([i for i in oth_res])
+        sco2 = new_ran.utility_measure(secrets, price)
         logging.debug("s-Knapsack Masking (%s): %d/%d attribute edges removed"
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        logging.debug("score compare: %f" % (sco2[1]))
         return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
-    def d_knapsack_relation(self, secrets, epsilon):
+    def d_knapsack_relation(self, secrets, price, epsilon):
         """
         return a sub graph with satisfying epsilon-privacy for relation masking
         :param secrets: dict
@@ -418,7 +434,7 @@ class RanGraph:
                 items = list()
                 for a in fn:
                     weight = tuple([self.mutual_information(a, s) for s in secrets[n]])
-                    items.append((a, 1, weight))
+                    items.append((a, price[a], weight))
                     # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
                 # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
@@ -625,6 +641,27 @@ class RanGraph:
                     return 0
         set_s = set(self.soc_attr_net.neighbors(secret))
         return self.__conditional_prob(set_s, set_f)
+
+    def value_of_attribute(self, mode='equal'):
+        values = dict()
+        if mode == 'equal':
+            for attr in self.attr_net.nodes():
+                values[attr] = 1
+        elif mode == 'unique':
+            for attr in self.attr_net.nodes():
+                values[attr] = 1/float(len(self.soc_attr_net.neighbors(attr)))
+        return values
+
+    def value_of_relation(self, mode='equal'):
+        values = dict()
+        if mode == 'equal':
+            for soc in self.soc_net.nodes():
+                values[soc] = 1
+        elif mode == 'unique':
+            for soc in self.attr_net.nodes():
+                values[soc] = 1 / float(len(self.soc_net.neighbors(soc)))
+        return values
+
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         if is_directed:

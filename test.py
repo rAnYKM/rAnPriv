@@ -33,13 +33,15 @@ def experiment(data, secret_cate, ar, dr, e):
                          np.log2(len(fb.ran.soc_attr_net.neighbors(a))/float(fb.ran.soc_net.number_of_nodes()))
                          for a in secret]
         ep2[node] = [e] * len(secret)
+    price = fb.ran.value_of_attribute('unique')
+    price2 = fb.ran.value_of_relation('equal')
     att_ran = fb.ran.random_sampling(ar)
     def_ran, stat1, _ = fb.ran.adv_random_masking(secrets, ep2)
-    greedy, stat2 = fb.ran.d_knapsack_mask(secrets, epsilon)
-    greedy2 = greedy.d_knapsack_relation(secrets, epsilon)
-    s_good, stat3 = fb.ran.s_knapsack_mask(secrets, ep2, 'dp')
-    s_greedy, stat4 = fb.ran.s_knapsack_mask(secrets, ep2, 'greedy')
-    s_dual, stat5= fb.ran.s_knapsack_mask(secrets, ep2, 'dual_greedy')
+    greedy, stat2 = fb.ran.d_knapsack_mask(secrets, price, epsilon)
+    greedy2 = greedy.d_knapsack_relation(secrets, price2, epsilon)
+    s_good, stat3 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'dp')
+    s_greedy, stat4 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'greedy')
+    s_dual, stat5= fb.ran.s_knapsack_mask(secrets, price, ep2, 'dual_greedy')
     # s_gual, tp4 = fb.ran.s_knapsack_mask(secrets, ep2, 'dual_dp')
     # def_ran.inference_attack(secrets, def_ran)
     # greedy.inference_attack(secrets, greedy)
@@ -80,8 +82,8 @@ if __name__ == '__main__':
     s3 = []
     for i in np.arange(0.05, 1, 0.05):
         print i
-        stat, ress, reff = experiment('0', sec, 1, 1, i)
+        stat, ress, reff = experiment('0', sec, i, 1, 0.5)
         s1.append(stat)
         s2.append(ress)
-    data_record([np.arange(0.05, 1, 0.05)], s1, 'edge_reduce.txt')
-    data_record([np.arange(0.05, 1, 0.05)], s2, 'performance.txt')
+    # data_record([np.arange(0.05, 1, 0.05)], s1, 'edge_reduce.txt')
+    data_record([np.arange(0.05, 1, 0.05)], s2, 'performance_different_attacker.txt')
