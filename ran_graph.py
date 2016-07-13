@@ -158,6 +158,14 @@ class RanGraph:
             scores[n] = score
         return scores, sum(scores.itervalues())
 
+    def relation_utility_measure(self, prices):
+        scores = dict()
+        for n in self.soc_net.nodes():
+            fn = [i for i in self.soc_net.neighbors(n)]
+            score = sum([prices[i] for i in fn])
+            scores[n] = score
+        return scores, sum(scores.itervalues())
+
     def obtain_set(self, features):
         set_r = set(self.soc_net.nodes())
         for f in features:
@@ -426,7 +434,7 @@ class RanGraph:
         deleted = []
         for n in self.soc_net.nodes():
             if len(secrets[n]) == 0:
-                soc_edge += [(n, node) for node in self.soc_net.neighbors(n)]
+                soc_edge += [(n, node) for node in self.soc_net.neighbors(n) if (n ,node) not in deleted]
             else:
                 eps = epsilon[n]
                 # Calculate the weight between secrets and attributes
@@ -442,10 +450,66 @@ class RanGraph:
                 deleted += [(n, soc[0]) for soc in items if soc not in sel]
                 deleted += [(soc[0], n) for soc in items if soc not in sel]
                 soc_edge += [(n, soc[0]) for soc in sel]
+        soc_edge = [edge for edge in soc_edge if edge not in deleted]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("d-Knapsack Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
-        return new_ran
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+
+    def s_knapsack_relation(self, secrets, price, epsilon, mode='dp'):
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        tmp_res = []
+        deleted = []
+        # oth_res = []
+        for n in self.soc_net.nodes():
+            if len(secrets[n]) == 0:
+                soc_edge += [(n, soc) for soc in self.soc_net.neighbors(n) if (n, soc) not in deleted]
+                # oth_res.append(sum([price[attr]
+                #                     for attr in self.soc_attr_net.neighbors(n)
+                #                     if attr[0] == 'a']))
+            else:
+                eps = epsilon[n]
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.soc_net.neighbors(n) if (n, i) not in deleted]
+                items = list()
+                for a in fn:
+                    weight = set([i for i in self.soc_net.neighbors(a)])
+                    items.append((a, price[a], weight))
+                s_set = [set([i for i in self.soc_attr_net.neighbors(s)]) for s in secrets[n]]
+                # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
+                # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
+                # val, sel = MultiDimensionalKnapsack(items, eps).greedy_solver('scale')
+                if mode == 'dp':
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dp_solver()
+                    tmp_res.append((val, sel))
+                elif mode == 'greedy':
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
+                    tmp_res.append((val, sel))
+                    # print val, sel
+                elif mode == 'dual_greedy':
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dual_greedy_solver()
+                    # val2, sel2 = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
+                    # print val, val2
+                    # print sel, sel2
+                    tmp_res.append((val, sel))
+                    # break
+                else:
+                    val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dual_dp_solver()
+                    tmp_res.append((val, sel))
+                deleted += [(n, soc[0]) for soc in items if soc not in sel]
+                deleted += [(soc[0], n) for soc in items if soc not in sel]
+                soc_edge += [(n, attr) for attr in sel]
+        # soc_edge = [edge for edge in soc_edge if edge not in deleted]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        # sco = sum([i[0] for i in tmp_res]) + sum([i for i in oth_res])
+        sco2 = new_ran.relation_utility_measure(price)
+        logging.debug("s-Knapsack Masking (%s): %d/%d social relations removed"
+                      % (mode, len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
+        logging.debug("score compare: %f" % (sco2[1]))
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
     def knapsack_relation(self, secret, epsilon=0.5):
         # WARNING: BE CAREFUL WITH USING THIS FUNCTION
@@ -650,6 +714,9 @@ class RanGraph:
         elif mode == 'unique':
             for attr in self.attr_net.nodes():
                 values[attr] = 1/float(len(self.soc_attr_net.neighbors(attr)))
+        elif mode == 'common':
+            for attr in self.attr_net.nodes():
+                values[attr] = len(self.soc_attr_net.neighbors(attr))/float(self.soc_net.number_of_nodes())
         return values
 
     def value_of_relation(self, mode='equal'):
