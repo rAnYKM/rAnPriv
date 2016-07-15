@@ -94,35 +94,25 @@ def experiment_relation(data, secret_cate, ar, dr, e):
         ep2[node] = [e] * len(secret)
     price = fb.ran.value_of_attribute('common')
     price2 = fb.ran.value_of_relation('equal')
+    price3 = fb.ran.value_of_edge('equal')
     att_ran = fb.ran.random_sampling(ar)
     def_ran, stat1, _ = fb.ran.adv_random_masking(secrets, ep2)
     greedy, stat2 = fb.ran.d_knapsack_mask(secrets, price, epsilon)
     greedy2, stat3 = greedy.d_knapsack_relation(secrets, price2, epsilon)
-    # s_good, stat3 = fb.ran.s_knapsack_relation(secrets, price2, ep2, 'dp')
-    s_greedy, stat4 = fb.ran.s_knapsack_relation(secrets, price2, ep2, 'greedy')
-    s_dual, stat5= fb.ran.s_knapsack_relation(secrets, price2, ep2, 'dual_greedy')
-    # s_gual, tp4 = fb.ran.s_knapsack_mask(secrets, ep2, 'dual_dp')
-    # def_ran.inference_attack(secrets, def_ran)
-    # greedy.inference_attack(secrets, greedy)
-    # _, res = fb.ran.inference_attack(secrets, att_ran)
-    # _, res2 = def_ran.inference_attack(secrets, att_ran)
+    s_greedy, stat4 = fb.ran.s_knapsack_relation_global(secrets, price3, ep2)
     _, res4 = def_ran.inference_attack_relation(secrets, att_ran)
     _, res3 = fb.ran.inference_attack_relation(secrets, att_ran)
-    # _, res5 = greedy.inference_attack(secrets, att_ran)
     _, res6 = greedy2.inference_attack_relation(secrets, att_ran)
-    # _, res7 = s_good.inference_attack(secrets, att_ran, e)
     _, res8 = s_greedy.inference_attack_relation(secrets, att_ran)
-    _, res9 = s_dual.inference_attack_relation(secrets, att_ran)
-    # d, res10 = s_gual.inference_attack(secrets, fb.ran, e)
-    print res3, res4, res6, res8, res9
+    print res3, res4, res6, res8
     # print a, b
     """
     for i in range(len(tp1)):
         if tp1[i][0] != tp2[i][0]:
             print tp1[i], tp2[i]
     """
-    stat = [stat1, stat3, stat4, stat5]
-    ress = [res4, res6, res8, res9]
+    stat = [stat1, stat3, stat4]
+    ress = [res4, res6, res8]
     reff = res3
     return stat, ress, reff
 
@@ -139,12 +129,12 @@ if __name__ == '__main__':
     s1 = []
     s2 = []
     s3 = []
-    for i in np.arange(0.05, 1, 0.05):
+    for i in np.arange(0.5, 1, 0.1):
         print i
-        stat, ress, reff, scos = experiment('0', sec, 1, 1, i)
+        stat, ress, reff = experiment_relation('0', sec, 1, 1, i)
         s1.append(stat)
         s2.append(ress)
-        s3.append(scos)
-    data_record([np.arange(0.05, 1, 0.05)], s1, 'edge_reduce3.txt')
-    data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
-    data_record([np.arange(0.05, 1, 0.05)], s3, 'score3.txt')
+        # s3.append(scos)
+    # data_record([np.arange(0.05, 1, 0.05)], s1, 'edge_reduce3.txt')
+    # data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
+    # data_record([np.arange(0.05, 1, 0.05)], s3, 'score3.txt')

@@ -14,6 +14,7 @@
 import collections
 import functools
 import numpy as np
+import networkx as nx
 
 
 class memoized(object):
@@ -475,6 +476,80 @@ class SetKnapsack:
             best_value -= self.items[choose][1]
             li.pop(li.index(choose))
         return best_value, res
+
+class NetKnapsack:
+    def __init__(self, soc_net, soc_attr_net, items, secrets, max_weights):
+        self.net = soc_net
+        self.attr_net = soc_attr_net
+        self.items = items
+        self.secrets = secrets
+        self.max_weights = max_weights
+
+    def greedy_solver(self):
+        def get_weight(set_a, s_sets):
+            result = list()
+            for set_s in s_sets:
+                if len(set_a) == 0:
+                    print "if you see this, something probably goes wrong"
+                    return None
+                result.append(len(set_a & set_s) / float(len(set_a)))
+            # print len(result), result,
+            return result
+
+        def exceed_weights(w, max_w):
+            for i in xrange(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def find_max(lis, c_set):
+            sel = -1
+            max_pw = -1
+            g_weight = []
+            for i in lis:
+                edge, price = self.items[i]
+                u, v = edge
+                # u node constraints
+                secret = self.secrets[u]
+                max_weight0 = self.max_weights[u]
+                s_sets = [set(self.attr_net.neighbors(s)) for s in secret]
+                set_a  = set(self.net.neighbors(v))
+                weights0 = get_weight(set_a & c_set[u], s_sets)
+
+                # v node constraints
+                secret = self.secrets[v]
+                max_weight1 = self.max_weights[v]
+                s_sets = [set(self.attr_net.neighbors(s)) for s in secret]
+                set_a = set(self.net.neighbors(u))
+                weights1 = get_weight(set_a & c_set[v], s_sets)
+
+                pw = price / float(sum([x / float(max_weight0[y]) for y, x in enumerate(weights0)]) +
+                                   sum([x / float(max_weight1[y]) for y, x in enumerate(weights1)]) + 1)
+                if pw > max_pw:
+                    max_pw = pw
+                    sel = i
+                    g_weight = (weights0, weights1)
+            return sel, g_weight
+
+        current_set = {n: set(self.net.nodes()) for n in self.net.nodes()}
+        li = range(len(self.items))
+        res = list()
+        best_value = 0
+        while li:
+            # each edge only relates to 2 nodes and their constraints
+            choose, new_weight = find_max(li, current_set)
+            e = self.items[choose][0]
+            if not exceed_weights(new_weight[0], self.max_weights[e[0]]):
+                if not exceed_weights(new_weight[1], self.max_weights[e[1]]):
+                    res.append(self.items[choose][0])
+                    current_set[e[0]] &= set(self.net.neighbors(e[1]))
+                    current_set[e[1]] &= set(self.net.neighbors(e[0]))
+                    best_value += self.items[choose][1]
+            li.remove(choose)
+            if len(li) % 100 == 0:
+                print len(li)
+        return best_value, res
+
 
 def test():
     # items = [(0, 4, 12), (1, 2, 1), (2, 6, 4), (3, 1, 1), (4, 2, 2)]

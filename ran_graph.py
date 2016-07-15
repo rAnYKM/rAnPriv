@@ -16,7 +16,7 @@ import numpy as np
 import logging
 from random import Random
 from ran_knapsack import knapsack
-from ran_kp import MultiDimensionalKnapsack, SetKnapsack
+from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -511,6 +511,29 @@ class RanGraph:
         logging.debug("score compare: %f" % (sco2[1]))
         return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
+    def s_knapsack_relation_global(self, secrets, price, epsilon):
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        attr_edge = self.attr_edge
+        soc_edge = list()
+        # we want to globally consider a whole optimization problem
+        # Get all max_weight and constraints
+        # constraints is mapped by node
+        items = list()
+        for edge in self.soc_net.edges():
+            if not (secrets[edge[0]] or secrets[edge[1]]):
+                soc_edge.append(edge)
+                continue
+            item = (edge, price[edge])
+            items.append(item)
+        val, sel = NetKnapsack(self.soc_net, self.soc_attr_net, items, secrets, epsilon).greedy_solver()
+        soc_edge += sel
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("N-Knapsack Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
+        logging.debug("score compare: %f" % (val))
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+
     def knapsack_relation(self, secret, epsilon=0.5):
         # WARNING: BE CAREFUL WITH USING THIS FUNCTION
         soc_node = self.soc_net.nodes()
@@ -729,6 +752,12 @@ class RanGraph:
                 values[soc] = 1 / float(len(self.soc_net.neighbors(soc)))
         return values
 
+    def value_of_edge(self, mode='equal'):
+        values = dict()
+        if mode == 'equal':
+            for edge in self.soc_net.edges():
+                values[edge] = 1
+        return values
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         if is_directed:
