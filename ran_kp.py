@@ -145,36 +145,40 @@ class MultiDimensionalKnapsack:
         self.items = items
         self.max_weights = max_weights
         self.sorted_items = sorted(self.items, key=lambda tup: float(tup[1]) / sum(tup[2]), reverse=True)
+        self.items = self.sorted_items # Weight is negative? NO PROBLEM!!
+        # print len([i[0] for i in self.items if sum(i[2]) < 0])
 
     def dp_solver(self):
         def exceed_weights(w, max_w):
-            for i in xrange(len(w)):
-                if w[i] > max_w[i]:
+            for index in xrange(len(w)):
+                if w[index] > max_w[index]:
                     return True
             return False
 
         def reduce_weights(w, max_w):
-            return [max_w[i] - w[i] for i in xrange(len(w))]
+            return [max_w[index] - w[index] for index in xrange(len(w))]
 
         def dp_recursive(p, q):
             if p == 0:
                 return 0
             _, value, weights = self.items[p - 1]
             if exceed_weights(weights, q):
-                return dp_recursive(p - 1, q)
+                return dp_recursive(p - 1, list(q))
             else:
-                return max(dp_recursive(p - 1, q),
+                return max(dp_recursive(p - 1, list(q)),
                            dp_recursive(p - 1, reduce_weights(weights, q)) + value)
 
         j = self.max_weights
         n = len(self.items)
         result = []
+        max_value = 0
         for i in xrange(n, 0, -1):
             if dp_recursive(i, j) != dp_recursive(i - 1, j):
                 result.append(self.items[i - 1])
                 j = reduce_weights(self.items[i - 1][2], j)
+                max_value += self.items[i - 1][1]
         result.reverse()
-        return dp_recursive(n, self.max_weights), result
+        return max_value, result# dp_recursive(n, self.max_weights), result
 
     def bnb_solver(self):
         # TODO: There is something wrong with upper bound decision

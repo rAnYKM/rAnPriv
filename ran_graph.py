@@ -206,7 +206,7 @@ class RanGraph:
                       (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
         return new_ran
 
-    def adv_random_masking(self, secrets, mask_ratio):
+    def adv_random_masking(self, secrets, mask_ratio, mode='off'):
         def exceed_weights(w, max_w):
             for i in xrange(len(w)):
                 if w[i] > max_w[i]:
@@ -232,16 +232,20 @@ class RanGraph:
                     fn.pop(int(a.random() * len(fn)))
                     weights = [self.prob_given_feature(s, fn) for s in secret]
                 # Social Relations
-                sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
-                weights = [self.prob_given_neighbor(s, sl) for s in secret]
-                while exceed_weights(weights, mask_ratio[n]) and sl:
-                    sl.pop(int(a.random() * len(sl)))
+                if mode == 'on':
+                    sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
                     weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                    while exceed_weights(weights, mask_ratio[n]) and sl:
+                        sl.pop(int(a.random() * len(sl)))
+                        weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                        deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                        deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                        soc_edge += [(n, soc) for soc in sl if soc not in deleted]
+                else:
+                    deleted = []
                 attr_edge += [(n, attr) for attr in fn]
                 attr_edge += [(n, s) for s in secret]
-                deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                soc_edge += [(n, soc) for soc in sl if soc not in deleted]
+
         soc_edge = [i for i in soc_edge if i not in deleted]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         attr_conceal = len(self.attr_edge) - len(attr_edge)
@@ -365,8 +369,8 @@ class RanGraph:
                 attr_edge += [(n, attr[0]) for attr in sel]
                 attr_edge += [(n, attr) for attr in secrets[n]]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
-        logging.debug("d-Knapsack Masking: %d/%d attribute edges removed"
-                      % (len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        logging.debug("d-Knapsack Masking (%s): %d/%d attribute edges removed"
+                      % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
     def s_knapsack_mask(self, secrets, price, epsilon, mode='dp'):

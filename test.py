@@ -133,16 +133,16 @@ def data_record(xs, ys, filename):
             fp.write(' '.join([str(i) for i in y]) + '\n')
 
 if __name__ == '__main__':
-    sec = ['aensl-50']
+    sec = ['ahn-359']
     s1 = []
     s2 = []
     s3 = []
-    for i in np.arange(0.4, 1, 0.05):
+    for i in np.arange(0.3, 1, 0.05):
         print i
-        stat, ress, reff, socs = experiment('0', sec, 1, 1, i)
+        stat, ress, reff, scos = experiment('686', sec, 1, 1, i)
         s1.append(stat)
         s2.append(ress)
-        # s3.append(scos)
-    data_record([np.arange(0.05, 1, 0.05)], s1, 'out/exp_0_attr.txt')
+        s3.append(scos)
+    data_record([np.arange(0.3, 1, 0.05)], s1, 'out/exp_686_attr.txt')
     # data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
-    # data_record([np.arange(0.05, 1, 0.05)], s3, 'score3.txt')
+    data_record([np.arange(0.3, 1, 0.05)], s3, 'out/exp_686_score.txt')
