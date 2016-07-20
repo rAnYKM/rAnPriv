@@ -332,7 +332,7 @@ class RanGraph:
             v = np.sqrt(np.log2(len(a_set) / float(len(w_set))) * np.log2(len(b_set) / float(len(w_set))))
         return self.mutual_information(attr_a, attr_b) / v
 
-    def d_knapsack_mask(self, secrets, price, epsilon):
+    def d_knapsack_mask(self, secrets, price, epsilon, mode='greedy'):
         """
         return a sub graph with satisfying epsilon-privacy
         :param secrets: dict
@@ -358,7 +358,10 @@ class RanGraph:
                     # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
                 # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
-                val, sel = MultiDimensionalKnapsack(items, eps).greedy_solver('scale')
+                if mode == 'dp':
+                    val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
+                else:
+                    val, sel = MultiDimensionalKnapsack(items, eps).greedy_solver('scale')
                 attr_edge += [(n, attr[0]) for attr in sel]
                 attr_edge += [(n, attr) for attr in secrets[n]]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
@@ -402,13 +405,16 @@ class RanGraph:
                     # print val, sel
                 elif mode == 'dual_greedy':
                     val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dual_greedy_solver()
-                    # val2, sel2 = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
-                    # print val, val2
-                    # print sel, sel2
+                    val2, sel2 = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).greedy_solver()
+                    print val, val2
+                    print sel, sel2
                     tmp_res.append((val, sel))
                     # break
                 else:
                     val, sel = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dual_dp_solver()
+                    val2, sel2 = SetKnapsack(set(self.soc_net.nodes()), s_set, items, eps).dp_solver()
+                    print val, val2
+                    print sel, sel2
                     tmp_res.append((val, sel))
                 attr_edge += [(n, attr) for attr in sel]
                 attr_edge += [(n, attr) for attr in secrets[n]]

@@ -291,6 +291,17 @@ class SetKnapsack:
         self.s_sets = s_sets
         self.items = items
         self.max_weights = max_weights
+        self.sorted_items = sorted(self.items, key=lambda tup: float(tup[1]) / sum(self.single_weight(tup[2])), reverse=True)
+
+    def single_weight(self, p_set):
+        res_li = list()
+        for set_s in self.s_sets:
+            if len(p_set) == 0:
+                print "if you see this, something probably goes wrong"
+                return None
+            res_li.append(len(p_set & set_s) / float(len(p_set)))
+        res_lii = [j / self.max_weights[i] for i, j in enumerate(res_li)]
+        return res_lii
 
     def dp_solver(self):
         def get_weight(set_a, s_sets):
@@ -311,7 +322,7 @@ class SetKnapsack:
         def best_value(p, q, res):
             if p == 0:
                 return 0
-            _, value, w_set = self.items[p - 1]
+            _, value, w_set = items[p - 1]
             weight = get_weight(w_set & res, self.s_sets)
             if exceed_weights(weight, q):
                 return best_value(p - 1, q, res)
@@ -360,7 +371,7 @@ class SetKnapsack:
             weight = get_weight(us, self.s_sets)
             lis = [it for it in cs if it != p - 1]
             if exceed_weights(weight, q):
-                return max(best_value(p - 1, q, lis, mv - value),
+                return max(best_value(p - 1, q, list(lis), mv - value),
                            best_value(p - 1, q, list(cs), mv))
             else:
                 return max(best_value(p - 1, q, list(cs), mv),
@@ -373,12 +384,13 @@ class SetKnapsack:
         for i in xrange(len(items), 0, -1):
             if best_value(i, j, selected, max_value) != best_value(i - 1, j, selected, max_value):
                 # result.append(items[i - 1])
+                max_value -= items[i - 1][1]
                 selected.remove(i - 1)
                 # print best_value(i - 1, j, res), result, res
                 # j -= items[i - 1][1]
         result = [items[it][0] for it in selected]
         # print result
-        return best_value(len(items), self.max_weights, range(len(items)), max_value), result
+        return best_value(len(items), self.max_weights, range(len(items)), sum([i[1] for i in self.items])), result
 
     def greedy_solver(self):
         def get_weight(set_a, s_sets):

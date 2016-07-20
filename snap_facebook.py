@@ -263,31 +263,11 @@ def main():
     # print cor
     # fb_net.write_gexf_network(fb_net.attr_net, 'attr')
     # print fb_net.ran.secret_analysis('aes50')
-    print fb_net.ran.secret_disclosure_rate('aensl-50')
-    att_ran = fb_net.ran.random_sampling(0.6)
-    def_ran = fb_net.ran.random_mask(['aensl-50'], 0.6)
-    print def_ran.secret_attack('aensl-50', att_ran)
-    print fb_net.ran.secret_attack('aensl-50', att_ran)
     # print fb_net.ran.soc_attr_net['5']
     # good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
     # edge_def_ran = fb_net.ran.knapsack_relation('aes50', 0.7)
     # print good_def_ran.secret_attack('aes50', att_ran)
-    secret = dict()
-    epsilon = dict()
-    for i in fb_net.ran.soc_net.nodes():
-        if fb_net.ran.soc_attr_net.has_edge(i, 'aensl-50'):
-            secret[i] = ['aensl-50']
-            epsilon[i] = [0.5]
-        else:
-            secret[i] = []
-            epsilon[i] = []
-    greedy = fb_net.ran.d_knapsack_mask(secret, epsilon)
-    greedy2 = greedy.d_knapsack_relation(secret, epsilon)
-    _, res = def_ran.inference_attack_relation(secret, att_ran)
-    _, res2 = fb_net.ran.inference_attack_relation(secret, att_ran)
-    print res, res2
-    print greedy2.inference_attack(secret, att_ran)
-    print greedy2.inference_attack_relation(secret, att_ran)
+
 
 if __name__ == '__main__':
     main()
