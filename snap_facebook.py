@@ -252,7 +252,7 @@ class FacebookEgoNet:
 
 
 def main():
-    fb_net = FacebookEgoNet('686')
+    fb_net = FacebookEgoNet('3980')
     # fb_net.get_network()
     fb_net.attribute_stat()
     # print fb_net.get_ego_features()

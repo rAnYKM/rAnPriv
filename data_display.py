@@ -6,10 +6,8 @@ import matplotlib
 # matplotlib.rcParams['text.latex.unicode'] = True
 import matplotlib.pyplot as plt
 
-def auto_scale
-
 def July10_01():
-    with open('out/exp_686_attr.txt', 'r') as fp:
+    with open('out/exp_3437_attr.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -20,11 +18,11 @@ def July10_01():
         print x,y
 
         lines = plt.plot(x, y, 'o-', linewidth=2, markersize=6)
-        plt.axis([0.3, 0.95, 0.1, 0.45], fontsize=20)
+        # plt.axis([0.3, 0.95, 0.1, 0.45], fontsize=20)
         plt.xlabel(r'Security Threshold', fontsize=20)
         plt.ylabel(r'Percentage of Masked Attributes', fontsize=20)
-        plt.xticks(np.arange(0.3, 1, 0.05))
-        plt.yticks(np.arange(0.1, 0.45, 0.05))
+        # plt.xticks(np.arange(0.3, 1, 0.05))
+        # plt.yticks(np.arange(0.1, 0.45, 0.05))
         plt.legend(lines, ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'DP', 'Greedy'), loc='lower left')
         plt.grid(True, color='black', alpha=0.5)
         plt.show()
@@ -53,7 +51,7 @@ def July10_02():
         # plt.savefig("test.eps", format="eps")
 
 def July12_01():
-    with open('out/exp_348_score.txt', 'r') as fp:
+    with open('out/exp_3437_score.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
