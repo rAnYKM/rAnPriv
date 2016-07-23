@@ -92,6 +92,11 @@ class FacebookEgoNet:
         attr_node = attr_labels
         soc_edge = network.edges()
         ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug('%d social nodes, %d attribute nodes, %d social relations, %d attribute links'
+                      % (ran.soc_net.number_of_nodes(),
+                         ran.soc_attr_net.number_of_nodes() - ran.soc_net.number_of_nodes(),
+                         ran.soc_net.number_of_edges(),
+                         ran.soc_attr_net.number_of_edges() - ran.soc_net.number_of_edges()))
         return ran
 
     def __better_feature_structure(self):

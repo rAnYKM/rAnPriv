@@ -258,7 +258,7 @@ class MultiDimensionalKnapsack:
         if metrics == 'direct':
             ratio = lambda p, w, c: p/float(sum(w) + 1)
         elif metrics == 'scale':
-            ratio = lambda p, w, c: p/float(sum([j/float(c[i]) for i, j in enumerate(w)]) + 1)
+            ratio = lambda p, w, c: p/float(sum([(j + 1)/(float(c[i]) + 1) for i, j in enumerate(w)]) + 1)
         else:
             print "ERROR: no such metrics"
             return
