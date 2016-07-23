@@ -190,19 +190,19 @@ def shell_bar():
 
 
 def line_line():
-    sec = ['aensl-538']
+    sec = ['aensl-52']
     s1 = []
     s2 = []
     s3 = []
-    for i in np.arange(0.35, 1, 0.05):
+    for i in np.arange(0.4, 1, 0.05):
         print i
-        stat, ress, reff, scos = experiment('1684', sec, 1, 1, i)
+        stat, ress, reff, scos = experiment('348', sec, 1, 1, i)
         s1.append(stat)
         s2.append(ress)
         s3.append(scos)
-    data_record([np.arange(0.35, 1, 0.05)], s1, 'out/exp_1684_attr_unique.txt')
+    data_record([np.arange(0.4, 1, 0.05)], s1, 'out/exp_348_attr_unique.txt')
     # data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
-    data_record([np.arange(0.35, 1, 0.05)], s3, 'out/exp_1684_score_unique.txt')
+    data_record([np.arange(0.4, 1, 0.05)], s3, 'out/exp_348_score_unique.txt')
 
 
 if __name__ == '__main__':

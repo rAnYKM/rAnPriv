@@ -9,7 +9,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
 def July10_01():
-    with open('out/exp_1684_score_unique.txt', 'r') as fp:
+    with open('out/exp_348_score_unique.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -36,7 +36,7 @@ def July10_01():
         # plt.xticks(np.arange(0.35, 1.0, 0.1), fontsize=20)
         # plt.yticks(np.arange(0.1, 0.45, 0.05), fontsize=20)
         plt.legend(lines,
-                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'Greedy', 'DP'), loc='upper right')
+                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'Greedy', 'DP'), loc='upper left')
         plt.grid(True, color='black', alpha=0.5)
         plt.show()
         # plt.savefig("test4.eps", format="eps")
