@@ -9,7 +9,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
 def July10_01():
-    with open('out/exp_348_score_unique.txt', 'r') as fp:
+    with open('out/exp_1684_attr_unique.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -30,16 +30,17 @@ def July10_01():
         plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
         plt.setp(lines[3], marker='s', color=scalarMap.to_rgba(4), markersize=8, linewidth=2.0)
         plt.setp(lines[4], marker='d', color=scalarMap.to_rgba(5), markersize=8, linewidth=2.0)
-        # plt.axis([0.35, 0.95, 0.08, 0.45])
-        plt.xlabel(r'Protection Threshold', fontsize=20)
+        plt.axis([0.35, 0.95, 0.05, 0.43])
+        plt.xlabel(r'$\theta$', fontsize=20)
         plt.ylabel(r'Percentage of Masked Attributes', fontsize=20)
-        # plt.xticks(np.arange(0.35, 1.0, 0.1), fontsize=20)
-        # plt.yticks(np.arange(0.1, 0.45, 0.05), fontsize=20)
+        plt.xticks(np.arange(0.35, 1.0, 0.1), fontsize=18)
+        plt.yticks(np.arange(0.05, 0.43, 0.05), fontsize=18)
         plt.legend(lines,
-                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'Greedy', 'DP'), loc='upper left')
-        plt.grid(True, color='black', alpha=0.5)
-        plt.show()
-        # plt.savefig("test4.eps", format="eps")
+                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'EPPD', 'DP'), fontsize=18, loc='lower left', ncol=2)
+        plt.grid(True)
+        plt.tight_layout()
+        # plt.show()
+        plt.savefig("1684UniqueMask.eps", format="eps")
 
 def July10_02():
     with open('performance_different_attacker.txt', 'r') as fp:

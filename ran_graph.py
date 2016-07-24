@@ -149,12 +149,15 @@ class RanGraph:
         neighbor_d = set(self.soc_attr_net.neighbors(destination))
         return len(neighbor_s & neighbor_d) / float(len(neighbor_s | neighbor_d))
 
-    def utility_measure(self, secrets, prices):
+    def utility_measure(self, secrets, prices, mode='single'):
         scores = dict()
         for n in self.soc_net.nodes():
             fn = [i for i in self.soc_attr_net.neighbors(n)
                   if i[0] == 'a' and i not in secrets[n]]
-            score = sum([prices[i] for i in fn])
+            if mode == 'single':
+                score = sum([prices[i] for i in fn])
+            else:
+                score = sum([prices[n][i] for i in fn])
             scores[n] = score
         return scores, sum(scores.itervalues())
 
@@ -336,7 +339,7 @@ class RanGraph:
             v = np.sqrt(np.log2(len(a_set) / float(len(w_set))) * np.log2(len(b_set) / float(len(w_set))))
         return self.mutual_information(attr_a, attr_b) / v
 
-    def d_knapsack_mask(self, secrets, price, epsilon, mode='greedy'):
+    def d_knapsack_mask(self, secrets, price, epsilon, mode='greedy', p_mode='single'):
         """
         return a sub graph with satisfying epsilon-privacy
         :param secrets: dict
@@ -358,7 +361,10 @@ class RanGraph:
                 items = list()
                 for a in fn:
                     weight = tuple([self.mutual_information(a, s) for s in secrets[n]])
-                    items.append((a, price[a], weight))
+                    if p_mode == 'single':
+                        items.append((a, price[a], weight))
+                    else:
+                        items.append((a, price[n][a], weight))
                     # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
                 # val, sel = MultiDimensionalKnapsack(items, eps).dp_solver()
@@ -373,7 +379,7 @@ class RanGraph:
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
-    def s_knapsack_mask(self, secrets, price, epsilon, mode='dp'):
+    def s_knapsack_mask(self, secrets, price, epsilon, mode='dp', p_mode='single'):
         soc_node = self.soc_node
         attr_node = self.attr_node
         soc_edge = self.soc_edge
@@ -394,7 +400,10 @@ class RanGraph:
                 items = list()
                 for a in fn:
                     weight = set([i for i in self.soc_attr_net.neighbors(a)])
-                    items.append((a, price[a], weight))
+                    if p_mode == 'single':
+                        items.append((a, price[a], weight))
+                    else:
+                        items.append((a, price[n][a], weight))
                 s_set = [set([i for i in self.soc_attr_net.neighbors(s)]) for s in secrets[n]]
                 # 1 is the value
                 # **WARNING** BE CAREFUL WHEN USING DP_SOLVER
@@ -424,7 +433,7 @@ class RanGraph:
                 attr_edge += [(n, attr) for attr in secrets[n]]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         # sco = sum([i[0] for i in tmp_res]) + sum([i for i in oth_res])
-        sco2 = new_ran.utility_measure(secrets, price)
+        sco2 = new_ran.utility_measure(secrets, price, p_mode)
         logging.debug("s-Knapsack Masking (%s): %d/%d attribute edges removed"
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         logging.debug("score compare: %f" % (sco2[1]))
@@ -624,7 +633,7 @@ class RanGraph:
             edge_disclosure[soc] = r_rates
         return attr_disclosure, edge_disclosure
 
-    def inference_attack(self, secrets, attack_graph, self_error_rate=1):
+    def inference_attack(self, secrets, attack_graph, epsilon):
         """
         This function simulates the inference attack on several secrets from an attack_graph
         :param secrets: dict
@@ -633,6 +642,7 @@ class RanGraph:
         """
         attack_res = dict()
         ctr = list()
+        ttn = 0
         for soc in self.soc_net.nodes_iter():
             if len(secrets[soc]) == 0:
                 # No secrets
@@ -642,17 +652,19 @@ class RanGraph:
             att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
             #          for secret in secrets[soc]}
-            att_rates = {secret: attack_graph.prob_given_feature(secret, att_feature)
-                         for secret in secrets[soc]}
-            ctr += [i for i in att_rates.itervalues() if i > self_error_rate]
+            att_rates = [attack_graph.prob_given_feature(secret, att_feature)
+                         for secret in secrets[soc]]
+            ctr += [(j - epsilon[soc][i])/float(epsilon[soc][i]) for i, j in enumerate(att_rates)
+                    if j > epsilon[soc][i]]
             attack_res[soc] = att_rates
+            ttn += len(att_rates)
         all_number = list()
         for j in attack_res.itervalues():
-            for k in j.itervalues():
-                all_number.append(k)
-        if len(ctr) > 0:
-            logging.debug("(exposed nodes) exceed number: %d" % (len(ctr)))
-        return attack_res, np.average(all_number)
+            all_number += j
+        # if len(ctr) > 0:
+        #     logging.debug("(exposed nodes) exceed number: %d" % (len(ctr)))
+        #     print ctr
+        return attack_res, np.average(all_number), sum(ctr)/float(ttn)
 
     def inference_attack_relation(self, secrets, attack_graph):
         """
@@ -748,8 +760,13 @@ class RanGraph:
             for attr in self.attr_net.nodes():
                 values[attr] = 1/float(len(self.soc_attr_net.neighbors(attr)))
         elif mode == 'common':
-            for attr in self.attr_net.nodes():
-                values[attr] = len(self.soc_attr_net.neighbors(attr))/float(self.soc_net.number_of_nodes())
+            for node in self.soc_net.nodes():
+                attrs = [soc for soc in self.soc_attr_net.neighbors_iter(node) if soc[0] == 'a']
+                values[node] = dict()
+                set_n = set(self.soc_net.neighbors(node))
+                for attr in attrs:
+                    set_a = set(self.soc_attr_net.neighbors(attr))
+                    values[node][attr] = (len(set_n & set_a) + 1)/float(len(set_n) + 1)
         return values
 
     def value_of_relation(self, mode='equal'):
