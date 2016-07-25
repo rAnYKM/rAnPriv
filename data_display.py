@@ -9,7 +9,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
 def July10_01():
-    with open('out/exp_1684_attr_unique.txt', 'r') as fp:
+    with open('out/exp_1684_attr.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -30,17 +30,17 @@ def July10_01():
         plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
         plt.setp(lines[3], marker='s', color=scalarMap.to_rgba(4), markersize=8, linewidth=2.0)
         plt.setp(lines[4], marker='d', color=scalarMap.to_rgba(5), markersize=8, linewidth=2.0)
-        plt.axis([0.35, 0.95, 0.05, 0.43])
+        plt.axis([0.35, 0.95, 0.1, 0.45])
         plt.xlabel(r'$\theta$', fontsize=20)
         plt.ylabel(r'Percentage of Masked Attributes', fontsize=20)
         plt.xticks(np.arange(0.35, 1.0, 0.1), fontsize=18)
-        plt.yticks(np.arange(0.05, 0.43, 0.05), fontsize=18)
+        plt.yticks(np.arange(0.1, 0.45, 0.05), fontsize=18)
         plt.legend(lines,
-                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'EPPD', 'DP'), fontsize=18, loc='lower left', ncol=2)
+                    ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'EPPD', 'DP'), fontsize=18, loc='upper right', ncol=2)
         plt.grid(True)
         plt.tight_layout()
         # plt.show()
-        plt.savefig("1684UniqueMask.eps", format="eps")
+        plt.savefig("1684Mask.eps", format="eps")
 
 def July10_02():
     with open('performance_different_attacker.txt', 'r') as fp:
@@ -128,6 +128,80 @@ def July22_01_bar():
     # plt.show()
     plt.savefig("data/longcomparebar.eps", format="eps")
 
+def July24_01_Overflow():
+    with open('out/exp_1684_over.txt', 'r') as fp:
+        x = [float(i) for i in fp.readline().strip().split()]
+        fp.readline()
+        li = fp.readline()
+        y = []
+        while li:
+            y.append([float(i) for i in li.strip().split()])
+            li = fp.readline()
+        print x, y
+
+        cm = plt.get_cmap('viridis')
+        cNorm = colors.Normalize(vmin=0, vmax=3)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        print scalarMap.get_clim()
+        # plt.style.use("ggplot")
+        lines = plt.plot(x, y, linewidth=2)
+        plt.setp(lines[0], marker='o', color=scalarMap.to_rgba(1), markersize=8, linewidth=2.0)
+        plt.setp(lines[1], marker='v', color=scalarMap.to_rgba(2), markersize=8, linewidth=2.0)
+        # plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
+        # plt.setp(lines[3], marker='s', color=scalarMap.to_rgba(4), markersize=8, linewidth=2.0)
+        # plt.setp(lines[4], marker='d', color=scalarMap.to_rgba(5), markersize=8, linewidth=2.0)
+        plt.axis([0.35, 0.95, 0, 0.3])
+        plt.xlabel(r'$\theta$', fontsize=20)
+        plt.ylabel(r'Overflowing Rate', fontsize=20)
+        plt.xticks(np.arange(0.35, 1.0, 0.1), fontsize=18)
+        plt.yticks(np.arange(0, 0.3, 0.05), fontsize=18)
+        plt.legend(lines,
+                   ('d-KP(Greedy)', 'd-KP(DP)'), fontsize=18, loc='lower left', ncol=1)
+        plt.grid(True)
+        plt.tight_layout()
+        # plt.show()
+        plt.savefig("1684Over.eps", format="eps")
+
+def July24_02_Attack():
+    with open('out/exp_1684_attack.txt', 'r') as fp:
+        x = [float(i) for i in fp.readline().strip().split()]
+        fp.readline()
+        li = fp.readline()
+        y = []
+        while li:
+            y.append([float(i) for i in li.strip().split()])
+            li = fp.readline()
+        y = np.matrix(y).transpose().tolist()
+
+        cm = plt.get_cmap('inferno')
+        cNorm = colors.Normalize(vmin=0, vmax=6)
+        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+        print scalarMap.get_clim()
+        # plt.style.use("ggplot")
+        lines = plt.plot(x, y, linewidth=2)
+        for i in range(1, 6, 1):
+            for j in scalarMap.to_rgba(i):
+                print j*255,
+            print
+        plt.setp(lines[0], marker='o', color=scalarMap.to_rgba(1), markersize=8, linewidth=2.0)
+        plt.setp(lines[1], marker='v', color=scalarMap.to_rgba(2), markersize=8, linewidth=2.0)
+        plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
+        plt.setp(lines[3], marker='s', color=scalarMap.to_rgba(4), markersize=8, linewidth=2.0)
+        plt.setp(lines[4], marker='d', color=scalarMap.to_rgba(5), markersize=8, linewidth=2.0)
+        plt.axis([0, 0.95, 0, 1.0])
+        plt.xlabel(r'Attack Graph SRS Rate', fontsize=20)
+        plt.ylabel(r'Average Privacy Disclosure Rate', fontsize=20)
+        plt.xticks(np.arange(0, 1.0, 0.2), fontsize=18)
+        plt.yticks(np.arange(0, 1.0, 0.2), fontsize=18)
+        plt.legend(lines,
+                   ('Origin Network', 'd-KP(Greedy)', 'd-KP(DP)', 'EPPD', 'DP'), fontsize=18, loc='upper left', ncol=1)
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+        # plt.savefig("1684Attack.eps", format="eps")
+
 if __name__ == '__main__':
-    July10_01()
+    # July10_01()
     # July22_01_bar()
+    # July24_01_Overflow()
+    July24_02_Attack()
