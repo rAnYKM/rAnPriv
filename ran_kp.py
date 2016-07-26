@@ -563,7 +563,8 @@ class NetKnapsack:
                     best_value += self.items[choose][1]
             li.remove(choose)
             if len(li) % 100 == 0:
-                print len(li)
+                print len(li),
+        print 'fin.'
         return best_value, res
 
 

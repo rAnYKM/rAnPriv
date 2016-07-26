@@ -105,7 +105,7 @@ def July22_01_bar():
     y = np.matrix([[1 - i for i in j] for j in y0])
     y = y.transpose().tolist()
     x = ['#0', '#107', '#348', '#414', '#686', '#1684', '#1912', '#3437']
-    xx = ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'Greedy', 'DP')
+    xx = ('Random Mask', 'd-KP(Greedy)', 'd-KP(DP)', 'EPPD', 'DP')
     plt.figure(figsize=(16, 5))
     bars = list()
     for i in range(5):
@@ -202,6 +202,6 @@ def July24_02_Attack():
 
 if __name__ == '__main__':
     # July10_01()
-    # July22_01_bar()
+    July22_01_bar()
     # July24_01_Overflow()
-    July24_02_Attack()
+    # July24_02_Attack()

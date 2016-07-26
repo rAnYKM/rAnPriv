@@ -162,12 +162,15 @@ class RanGraph:
         return scores, sum(scores.itervalues())
 
     def relation_utility_measure(self, prices):
-        scores = dict()
-        for n in self.soc_net.nodes():
-            fn = [i for i in self.soc_net.neighbors(n)]
-            score = sum([prices[i] for i in fn])
-            scores[n] = score
-        return scores, sum(scores.itervalues())
+        scores = list()
+        for u, v in self.soc_net.edges():
+            if (u, v) in prices:
+                scores.append(prices[(u, v)])
+            elif (v, u) in prices:
+                scores.append(prices[(v, u)])
+            else:
+                print "something may go wrong here", u, v
+        return scores, sum(scores)
 
     def obtain_set(self, features):
         set_r = set(self.soc_net.nodes())
@@ -216,6 +219,16 @@ class RanGraph:
                     return True
             return False
 
+        def exceed_all_weights(cur_graph):
+            for nod, sec in secrets.iteritems():
+                for index, je in enumerate(sec):
+                    nei = cur_graph.neighbors(nod)
+                    weight = self.prob_given_neighbor(je, nei)
+                    if weight > mask_ratio[nod][index]:
+                        return True
+            return False
+
+
         soc_node = self.soc_net.nodes()
         attr_node = self.attr_net.nodes()
         soc_edge = []
@@ -235,21 +248,35 @@ class RanGraph:
                     fn.pop(int(a.random() * len(fn)))
                     weights = [self.prob_given_feature(s, fn) for s in secret]
                 # Social Relations
-                if mode == 'on':
-                    sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
-                    weights = [self.prob_given_neighbor(s, sl) for s in secret]
-                    while exceed_weights(weights, mask_ratio[n]) and sl:
-                        sl.pop(int(a.random() * len(sl)))
-                        weights = [self.prob_given_neighbor(s, sl) for s in secret]
-                        deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                        deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                        soc_edge += [(n, soc) for soc in sl if soc not in deleted]
-                else:
-                    deleted = []
+                # if mode == 'on':
+                #     sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
+                #     weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                #     while exceed_weights(weights, mask_ratio[n]) and sl:
+                #         sl.pop(int(a.random() * len(sl)))
+                #         weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                #     deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                #     deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                #     soc_edge += [(n, soc) for soc in sl if soc not in deleted]
+                # else:
+                #     deleted = []
                 attr_edge += [(n, attr) for attr in fn]
                 attr_edge += [(n, s) for s in secret]
-
-        soc_edge = [i for i in soc_edge if i not in deleted]
+        a = Random()
+        if mode == 'on':
+            proc_edge = []
+            for edge in self.soc_net.edges():
+                u = edge[0]
+                v = edge[1]
+                if len(secrets[u]) == 0 and len(secrets[v]) == 0:
+                    soc_edge.append(edge)
+                else:
+                    proc_edge.append(edge)
+            cur_graph = nx.Graph()
+            cur_graph.add_edges_from(proc_edge)
+            while(cur_graph.number_of_edges() !=0 and exceed_all_weights(cur_graph)):
+                ed = proc_edge.pop(int(a.random()*len(proc_edge)))
+                cur_graph.remove_edge(ed[0], ed[1])
+            soc_edge += proc_edge
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         attr_conceal = len(self.attr_edge) - len(attr_edge)
         logging.debug("Random Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
@@ -530,6 +557,56 @@ class RanGraph:
         logging.debug("score compare: %f" % (sco2[1]))
         return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
+    def d_knapsack_relation_global(self, secrets, price, epsilon):
+        """
+        return a sub graph with satisfying epsilon-privacy for relation masking
+        :param secrets: dict
+        :param epsilon: dict
+        :return: RanGraph
+        """
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        # Serialize secrets and epsilon
+
+        node_index = dict()
+        new_eps = list()
+        current = 0
+        for node, secret in secrets.iteritems():
+            eps = epsilon[node]
+            if secret:
+                node_index[node] = current
+            else:
+                node_index[node] = -1 # NO SECRET NODE
+            for index, sec in enumerate(secret):
+                new_eps.append(eps[index])
+                current += 1
+
+        items = list()
+        for edge in self.soc_net.edges():
+            u = edge[0]
+            v = edge[1]
+            if len(secrets[u]) == 0 and len(secrets[v]) == 0:
+                soc_edge.append(edge)
+                continue
+            else:
+                # Calculate weight
+                weight = [0]*len(new_eps)
+                for index, sec in enumerate(secrets[u]):
+                    weight[node_index[u] + index] = self.mutual_information(v, sec)
+                for index, sec in enumerate(secrets[v]):
+                    weight[node_index[v] + index] = self.mutual_information(u, sec)
+                item = (edge, price[edge], weight)
+                items.append(item)
+        # print items
+        val, sel = MultiDimensionalKnapsack(items, new_eps).greedy_solver('scale')
+        soc_edge += [choose[0] for choose in sel]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("d-Knapsack Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+
     def s_knapsack_relation_global(self, secrets, price, epsilon):
         soc_node = self.soc_node
         attr_node = self.attr_node
@@ -666,7 +743,7 @@ class RanGraph:
         #     print ctr
         return attack_res, np.average(all_number), sum(ctr)/float(ttn)
 
-    def inference_attack_relation(self, secrets, attack_graph):
+    def inference_attack_relation(self, secrets, attack_graph, epsilon):
         """
         This function simulates the inference attack on several secrets from an attack_graph
         VIA social relation information
@@ -675,6 +752,8 @@ class RanGraph:
         :return: dict, float
         """
         attack_res = dict()
+        ctr = list()
+        ttn = 0
         for soc in self.soc_net.nodes_iter():
             if len(secrets[soc]) == 0:
                 # No secrets
@@ -683,14 +762,16 @@ class RanGraph:
             att_feature = [node for node in relation if attack_graph.soc_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
             #          for secret in secrets[soc]}
-            att_rates = {secret: attack_graph.prob_given_feature(secret, att_feature)
-                         for secret in secrets[soc]}
+            att_rates = [attack_graph.prob_given_feature(secret, att_feature)
+                         for secret in secrets[soc]]
+            ctr += [(j - epsilon[soc][i]) / float(epsilon[soc][i]) for i, j in enumerate(att_rates)
+                    if j > epsilon[soc][i]]
             attack_res[soc] = att_rates
+            ttn += len(att_rates)
         all_number = list()
         for j in attack_res.itervalues():
-            for k in j.itervalues():
-                all_number.append(k)
-        return attack_res, np.average(all_number)
+            all_number += j
+        return attack_res, np.average(all_number), sum(ctr)/float(ttn)
 
     def secret_attack(self, secret, attack_graph):
         """
@@ -784,6 +865,22 @@ class RanGraph:
         if mode == 'equal':
             for edge in self.soc_net.edges():
                 values[edge] = 1
+        elif mode == 'Jaccard':
+            for edge in self.soc_net.edges():
+                u = edge[0]
+                v = edge[1]
+                u_set = set(self.soc_attr_net.neighbors(u))
+                v_set = set(self.soc_attr_net.neighbors(v))
+                values[edge] = len(u_set & v_set)/float(u_set | v_set)
+        elif mode == 'AA':
+            for edge in self.soc_net.edges():
+                u = edge[0]
+                v = edge[1]
+                u_set = set(self.soc_attr_net.neighbors(u))
+                v_set = set(self.soc_attr_net.neighbors(v))
+                values[edge] = sum([np.log2(len([node for node in self.soc_attr_net.neighbors(w)
+                                                 if node[0] != 'a']))
+                                    for w in u_set & v_set])
         return values
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
