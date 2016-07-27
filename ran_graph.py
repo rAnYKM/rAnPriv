@@ -14,6 +14,7 @@
 import networkx as nx
 import numpy as np
 import logging
+import operator
 from random import Random
 from ran_knapsack import knapsack
 from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack
@@ -238,6 +239,7 @@ class RanGraph:
             secret = secrets[n]
             if len(secret) == 0:
                 attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
+                soc_edge += [(n, soc) for soc in self.soc_net.neighbors(n)]
             else:
                 # Calculate the weight between secrets and attributes
                 fn = [i for i in self.soc_attr_net.neighbors(n)
@@ -248,41 +250,115 @@ class RanGraph:
                     fn.pop(int(a.random() * len(fn)))
                     weights = [self.prob_given_feature(s, fn) for s in secret]
                 # Social Relations
-                # if mode == 'on':
-                #     sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
-                #     weights = [self.prob_given_neighbor(s, sl) for s in secret]
-                #     while exceed_weights(weights, mask_ratio[n]) and sl:
-                #         sl.pop(int(a.random() * len(sl)))
-                #         weights = [self.prob_given_neighbor(s, sl) for s in secret]
-                #     deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                #     deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
-                #     soc_edge += [(n, soc) for soc in sl if soc not in deleted]
-                # else:
-                #     deleted = []
+                if mode == 'on':
+                    sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
+                    weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                    while exceed_weights(weights, mask_ratio[n]) and sl:
+                        sl.pop(int(a.random() * len(sl)))
+                        weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                    deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                    deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                    soc_edge += [(n, soc) for soc in sl if soc not in deleted]
+                else:
+                    deleted = []
                 attr_edge += [(n, attr) for attr in fn]
                 attr_edge += [(n, s) for s in secret]
-        a = Random()
-        if mode == 'on':
-            proc_edge = []
-            for edge in self.soc_net.edges():
-                u = edge[0]
-                v = edge[1]
-                if len(secrets[u]) == 0 and len(secrets[v]) == 0:
-                    soc_edge.append(edge)
-                else:
-                    proc_edge.append(edge)
-            cur_graph = nx.Graph()
-            cur_graph.add_edges_from(proc_edge)
-            while(cur_graph.number_of_edges() !=0 and exceed_all_weights(cur_graph)):
-                ed = proc_edge.pop(int(a.random()*len(proc_edge)))
-                cur_graph.remove_edge(ed[0], ed[1])
-            soc_edge += proc_edge
+        soc_edge = [edge for edge in soc_edge if edge not in deleted]
+        # a = Random()
+        # if mode == 'on':
+        #     proc_edge = []
+        #     for edge in self.soc_net.edges():
+        #         u = edge[0]
+        #         v = edge[1]
+        #         if len(secrets[u]) == 0 and len(secrets[v]) == 0:
+        #             soc_edge.append(edge)
+        #         else:
+        #             proc_edge.append(edge)
+        #     cur_graph = nx.Graph()
+        #     cur_graph.add_edges_from(proc_edge)
+        #     print len(proc_edge)
+        #     while(cur_graph.number_of_edges() != 0 and exceed_all_weights(cur_graph)):
+        #         ed = proc_edge.pop(int(a.random()*len(proc_edge)))
+        #         cur_graph.remove_edge(ed[0], ed[1])
+        #     soc_edge += proc_edge
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         attr_conceal = len(self.attr_edge) - len(attr_edge)
         logging.debug("Random Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
         logging.debug("Random Masking: %d/%d social relations removed" %
-                      (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
-        return new_ran, attr_conceal / float(len(self.attr_edge)), (len(self.soc_edge) - len(soc_edge)) / float(
+                      (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran, attr_conceal / float(len(self.attr_edge)), (len(self.soc_edge) - new_ran.soc_net.number_of_edges()) / float(
+            len(self.soc_edge))
+
+    def nb_masking(self, secrets, mask_ratio, mode='off'):
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        soc_edge = []
+        attr_edge = []
+
+        def exceed_weights(w, max_w):
+            for i in xrange(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def exceed_all_weights(cur_graph):
+            for nod, sec in secrets.iteritems():
+                for index, je in enumerate(sec):
+                    nei = cur_graph.neighbors(nod)
+                    weight = self.prob_given_neighbor(je, nei)
+                    if weight > mask_ratio[nod][index]:
+                        return True
+            return False
+
+        soc_node = self.soc_net.nodes()
+        attr_node = self.attr_net.nodes()
+        soc_edge = []
+        attr_edge = []
+        deleted = []
+        for n in soc_node:
+            secret = secrets[n]
+            if len(secret) == 0:
+                attr_edge += [(n, attr) for attr in self.soc_attr_net.neighbors(n) if attr[0] == 'a']
+                soc_edge += [(n, soc) for soc in self.soc_net.neighbors(n)]
+            else:
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.soc_attr_net.neighbors(n)
+                      if i[0] == 'a' and i not in secrets[n]]
+                weights = [self.prob_given_feature(s, fn) for s in secret]
+                sw = [sum([self.prob_given_feature(ff, [s])*0.1 + self.prob_given_feature(s, [ff])*0.9 for s in secret])
+                      for ff in fn]
+                while exceed_weights(weights, mask_ratio[n]) and fn:
+                    index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                    fn.pop(index)
+                    sw.pop(index)
+                    weights = [self.prob_given_feature(s, fn) for s in secret]
+                attr_edge += [(n, attr) for attr in fn]
+                attr_edge += [(n, s) for s in secret]
+                if mode == 'on':
+                    sl = [i for i in self.soc_net.neighbors(n) if i not in deleted]
+                    weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                    sw = [sum([self.prob_given_neighbor(s, [soc]) for s in secret])
+                          for soc in sl]
+                    while exceed_weights(weights, mask_ratio[n]) and sl:
+                        index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                        sl.pop(index)
+                        sw.pop(index)
+                        weights = [self.prob_given_neighbor(s, sl) for s in secret]
+                    deleted += [(n, soc) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                    deleted += [(soc, n) for soc in self.soc_net.neighbors(n) if soc not in sl]
+                    soc_edge += [(n, soc) for soc in sl if soc not in deleted]
+                else:
+                    deleted = []
+                attr_edge += [(n, attr) for attr in fn]
+                attr_edge += [(n, s) for s in secret]
+        soc_edge = [edge for edge in soc_edge if edge not in deleted]
+        new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
+        attr_conceal = len(self.attr_edge) - len(attr_edge)
+        logging.debug("Random Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
+        logging.debug("Random Masking: %d/%d social relations removed" %
+                      (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran, attr_conceal / float(len(self.attr_edge)), (
+        len(self.soc_edge) - new_ran.soc_net.number_of_edges()) / float(
             len(self.soc_edge))
 
     def random_mask(self, secret, mask_ratio=0.1):
@@ -871,7 +947,7 @@ class RanGraph:
                 v = edge[1]
                 u_set = set(self.soc_attr_net.neighbors(u))
                 v_set = set(self.soc_attr_net.neighbors(v))
-                values[edge] = len(u_set & v_set)/float(u_set | v_set)
+                values[edge] = len(u_set & v_set)/float(len(u_set | v_set))
         elif mode == 'AA':
             for edge in self.soc_net.edges():
                 u = edge[0]
