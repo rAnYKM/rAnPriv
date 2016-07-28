@@ -413,8 +413,11 @@ class SetKnapsack:
                     return True
             return False
 
+        def reduce_weights(w, max_w):
+            return [max_w[i] - w[i] for i in xrange(len(w))]
+
         def find_max(l, cs):
-            ratio = lambda p, w, c: p / float(sum([j / float(c[i]) for i, j in enumerate(w)]))
+            ratio = lambda p, w, c: (p + 1) / float(sum([j / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
             max_pw = -1
             sel = -1
             g_weights = list()

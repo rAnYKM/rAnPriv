@@ -349,8 +349,6 @@ class RanGraph:
                     soc_edge += [(n, soc) for soc in sl if soc not in deleted]
                 else:
                     deleted = []
-                attr_edge += [(n, attr) for attr in fn]
-                attr_edge += [(n, s) for s in secret]
         soc_edge = [edge for edge in soc_edge if edge not in deleted]
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         attr_conceal = len(self.attr_edge) - len(attr_edge)

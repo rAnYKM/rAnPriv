@@ -34,9 +34,9 @@ def experiment(data, secret_cate, ar, dr, e):
                          np.log2(len(fb.ran.soc_attr_net.neighbors(a))/float(fb.ran.soc_net.number_of_nodes()))
                          for a in secret]
         ep2[node] = [e] * len(secret)
-    price = fb.ran.value_of_attribute('common')
+    price = fb.ran.value_of_attribute('equal')
     att_ran = fb.ran.random_sampling(ar)
-    mode = 'double'
+    mode = 'single'
     score_li = []
     stat_li = []
     res_li = []
@@ -257,10 +257,10 @@ def line_line():
         s2.append(ress)
         s3.append(scos)
         s4.append(fss)
-    data_record([np.arange(0.35, 1, 0.05)], s1, 'out/exp_1684_attr_common_six.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s1, 'data/exp_1684_attr_six.txt')
     # data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
-    data_record([np.arange(0.35, 1, 0.05)], s3, 'out/exp_1684_score_common_six.txt')
-    data_record([np.arange(0.35, 1, 0.05)], s4, 'out/exp_1684_over_common_six.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s3, 'data/exp_1684_score_six.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s4, 'data/exp_1684_over_six.txt')
 
 
 def experiment_attack(data, secret_cate):
@@ -346,10 +346,10 @@ def line_relation():
 
 
 if __name__ == '__main__':
-    # line_line()
+    line_line()
     # shell_bar()
     # experiment_attack('1684', ['aensl-538'])
     # experiment_relation('0', ['aensl-50'], 1, 1, 0.5)
-    line_relation()
+    # line_relation()
 
 
