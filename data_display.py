@@ -147,7 +147,7 @@ def July22_01_bar():
     plt.savefig("data/longcomparebar.eps", format="eps")
 
 def July24_01_Overflow():
-    with open('out/exp_3437e_over_4a.txt', 'r') as fp:
+    with open('out/exp_1684_over_common_six.txt', 'r') as fp:
         x = [float(i) for i in fp.readline().strip().split()]
         fp.readline()
         li = fp.readline()
@@ -163,22 +163,22 @@ def July24_01_Overflow():
         print scalarMap.get_clim()
         # plt.style.use("ggplot")
         lines = plt.plot(x, y, linewidth=2)
-        plt.setp(lines[0], marker='o', color=scalarMap.to_rgba(1), markersize=8, linewidth=2.0)
-        plt.setp(lines[1], marker='v', color=scalarMap.to_rgba(2), markersize=8, linewidth=2.0)
-        plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
+        plt.setp(lines[0], marker='v', color=scalarMap.to_rgba(1), markersize=8, linewidth=2.0)
+        plt.setp(lines[1], marker='^', color=scalarMap.to_rgba(2), markersize=8, linewidth=2.0)
+        # plt.setp(lines[2], marker='^', color=scalarMap.to_rgba(3), markersize=8, linewidth=2.0)
         # plt.setp(lines[3], marker='s', color=scalarMap.to_rgba(4), markersize=8, linewidth=2.0)
         # plt.setp(lines[4], marker='d', color=scalarMap.to_rgba(5), markersize=8, linewidth=2.0)
-        plt.axis([0.2, 0.90, 0, 0.2])
+        plt.axis([0.35, 0.95, 0, 0.25])
         plt.xlabel(r'$\theta$', fontsize=20)
         plt.ylabel(r'Overflowing Rate', fontsize=20)
-        plt.xticks(np.arange(0.2, 0.91, 0.1), fontsize=18)
-        plt.yticks(np.arange(0, 0.2, 0.05), fontsize=18)
+        plt.xticks(np.arange(0.35, 0.96, 0.1), fontsize=18)
+        plt.yticks(np.arange(0, 0.26, 0.05), fontsize=18)
         plt.legend(lines,
-                   ('Random Mask', 'd-KP(Greedy)', 'NB'), fontsize=18, loc='upper right', ncol=1)
+                   ('d-KP(Greedy)', 'd-KP(DP)'), fontsize=18, loc='upper right', ncol=1)
         plt.grid(True)
         plt.tight_layout()
         # plt.show()
-        plt.savefig("3437AOver.eps", format="eps")
+        plt.savefig("1684CommonOver.eps", format="eps")
 
 def July24_02_Attack():
     with open('out/exp_1684_attack.txt', 'r') as fp:
@@ -294,7 +294,7 @@ def unify_draw_line(filename, number_of_lines, marker_legend, x_range, y_range, 
 
 if __name__ == '__main__':
     # July10_01()
-    July22_01_bar()
-    # July24_01_Overflow()
+    # July22_01_bar()
+    July24_01_Overflow()
     # July24_02_Attack()
     # July25_final()
