@@ -805,7 +805,7 @@ class RanGraph:
             #          for secret in secrets[soc]}
             att_rates = [attack_graph.prob_given_feature(secret, att_feature)
                          for secret in secrets[soc]]
-            ctr += [(j - epsilon[soc][i])/float(epsilon[soc][i]) for i, j in enumerate(att_rates)
+            ctr += [j - epsilon[soc][i] for i, j in enumerate(att_rates)
                     if j > epsilon[soc][i]]
             attack_res[soc] = att_rates
             ttn += len(att_rates)
@@ -838,7 +838,7 @@ class RanGraph:
             #          for secret in secrets[soc]}
             att_rates = [attack_graph.prob_given_feature(secret, att_feature)
                          for secret in secrets[soc]]
-            ctr += [(j - epsilon[soc][i]) / float(epsilon[soc][i]) for i, j in enumerate(att_rates)
+            ctr += [j - epsilon[soc][i]  for i, j in enumerate(att_rates)
                     if j > epsilon[soc][i]]
             attack_res[soc] = att_rates
             ttn += len(att_rates)

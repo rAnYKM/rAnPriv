@@ -34,9 +34,9 @@ def experiment(data, secret_cate, ar, dr, e):
                          np.log2(len(fb.ran.soc_attr_net.neighbors(a))/float(fb.ran.soc_net.number_of_nodes()))
                          for a in secret]
         ep2[node] = [e] * len(secret)
-    price = fb.ran.value_of_attribute('equal')
+    price = fb.ran.value_of_attribute('common')
     att_ran = fb.ran.random_sampling(ar)
-    mode = 'single'
+    mode = 'double'
     score_li = []
     stat_li = []
     res_li = []
@@ -56,29 +56,29 @@ def experiment(data, secret_cate, ar, dr, e):
 
     greedy, stat2 = fb.ran.d_knapsack_mask(secrets, price, epsilon, 'greedy', mode)
     ddp, stat3 = fb.ran.d_knapsack_mask(secrets, price, epsilon, 'dp', mode)
-    s_good, stat5 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'dp', mode)
+    # s_good, stat5 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'dp', mode)
     s_greedy, stat4 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'greedy', mode)
     compare, stat6, _ = fb.ran.nb_masking(secrets, ep2)
     _, res, fs = fb.ran.inference_attack(secrets, att_ran, ep2)
     _, res2, fs2 = greedy.inference_attack(secrets, att_ran, ep2)
     _, res3, fs3 = ddp.inference_attack(secrets, att_ran, ep2)
-    _, res5, fs5 = s_good.inference_attack(secrets, att_ran, ep2)
+    # _, res5, fs5 = s_good.inference_attack(secrets, att_ran, ep2)
     _, res4, fs4 = s_greedy.inference_attack(secrets, att_ran, ep2)
     _, res6, fs6 = compare.inference_attack(secrets, att_ran, ep2)
 
     _, max_score = fb.ran.utility_measure(secrets, price, mode)
     _, score2 = greedy.utility_measure(secrets, price, mode)
     _, score3 = ddp.utility_measure(secrets, price, mode)
-    _, score5 = s_good.utility_measure(secrets, price, mode)
+    # _, score5 = s_good.utility_measure(secrets, price, mode)
     _, score4 = s_greedy.utility_measure(secrets, price, mode)
     _, score6 = compare.utility_measure(secrets, price, mode)
-    stat = [stat1, stat2, stat3, stat4, stat5, stat6]
-    ress = [res1, res2, res3, res4, res5, res6]
-    scos = [score1, score2, score3, score4, score5, score6]
+    stat = [stat1, stat2, stat3, stat4, stat6]
+    ress = [res1, res2, res3, res4, res6]
+    scos = [score1, score2, score3, score4, score6]
     n_scos = [i / float(max_score) for i in scos]
     reff = res
     print n_scos
-    print fs, fs1, fs2, fs3, fs4, fs5, fs6
+    print fs, fs1, fs2, fs3, fs4, fs6
     fss = [fs2, fs3]
     return stat, ress, reff, n_scos, fss
 
@@ -257,10 +257,10 @@ def line_line():
         s2.append(ress)
         s3.append(scos)
         s4.append(fss)
-    data_record([np.arange(0.35, 1, 0.05)], s1, 'data/exp_1684_attr_six.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s1, 'data/exp_1684c_attr_new.txt')
     # data_record([np.arange(0.05, 1, 0.05)], s2, 'performance3.txt')
-    data_record([np.arange(0.35, 1, 0.05)], s3, 'data/exp_1684_score_six.txt')
-    data_record([np.arange(0.35, 1, 0.05)], s4, 'data/exp_1684_over_six.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s3, 'data/exp_1684c_score_new.txt')
+    data_record([np.arange(0.35, 1, 0.05)], s4, 'data/exp_1684c_over_new.txt')
 
 
 def experiment_attack(data, secret_cate):
