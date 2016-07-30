@@ -284,7 +284,7 @@ def experiment_attack(data, secret_cate):
 
     greedy, stat2 = fb.ran.d_knapsack_mask(secrets, price, epsilon, 'greedy', mode)
     ddp, stat3 = fb.ran.d_knapsack_mask(secrets, price, epsilon, 'dp', mode)
-    s_good, stat5 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'dp', mode)
+    # s_good, stat5 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'dp', mode)
     s_greedy, stat4 = fb.ran.s_knapsack_mask(secrets, price, ep2, 'greedy', mode)
     compare, stat6, _ = fb.ran.nb_masking(secrets, ep2)
 
@@ -307,23 +307,23 @@ def experiment_attack(data, secret_cate):
             _, res, fs = fb.ran.inference_attack(secrets, att_ran, ep2)
             _, res2, fs2 = greedy.inference_attack(secrets, att_ran, ep2)
             _, res3, fs3 = ddp.inference_attack(secrets, att_ran, ep2)
-            _, res5, fs5 = s_good.inference_attack(secrets, att_ran, ep2)
+            # _, res5, fs5 = s_good.inference_attack(secrets, att_ran, ep2)
             _, res4, fs4 = s_greedy.inference_attack(secrets, att_ran, ep2)
             _, res6, fs6 = compare.inference_attack(secrets, att_ran, ep2)
             re.append(res)
             re2.append(res2)
             re3.append(res3)
             re4.append(res4)
-            re5.append(res5)
+            # re5.append(res5)
             re6.append(res6)
         r.append(np.average(re))
         r2.append(np.average(re2))
         r3.append(np.average(re3))
         r4.append(np.average(re4))
-        r5.append(np.average(re5))
+        # r5.append(np.average(re5))
         r6.append(np.average(re6))
-    print r, r2, r3, r4, r5, r6
-    data_record([np.arange(0, 1, 0.05)], [r, r2, r3, r4, r5, r6], 'out/exp_1684_attack_six.txt')
+    print r, r2, r3, r4, r6
+    data_record([np.arange(0, 1, 0.05)], [r, r2, r3, r4, r6], 'out/exp_1684_attack_six.txt')
 
 
 def line_relation():
@@ -346,9 +346,9 @@ def line_relation():
 
 
 if __name__ == '__main__':
-    line_line()
+    # line_line()
     # shell_bar()
-    # experiment_attack('1684', ['aensl-538'])
+    experiment_attack('1684', ['aensl-538'])
     # experiment_relation('0', ['aensl-50'], 1, 1, 0.5)
     # line_relation()
 
