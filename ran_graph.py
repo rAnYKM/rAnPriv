@@ -957,7 +957,7 @@ class RanGraph:
                                     for w in u_set & v_set])
         return values
 
-    def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
+    def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False, has_attr_net=False):
         if is_directed:
             self.is_directed = True
         else:
@@ -973,5 +973,10 @@ class RanGraph:
         Edges in Attribute Network represent the correlation
         Directed and Undirected attribute networks are both provided
         """
-        self.attr_net = self.__build_attr_net()
-        self.di_attr_net = self.__build_di_attr_net()
+        if has_attr_net:
+            self.attr_net = self.__build_attr_net()
+            self.di_attr_net = self.__build_di_attr_net()
+        logging.debug('[RanGraph] RAN built: %d actors, %d edges, %d attributes and %d links'
+                      % (self.soc_net.number_of_nodes(), self.soc_net.number_of_edges(),
+                         self.soc_attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
+                         self.soc_attr_net.number_of_edges() - self.soc_net.number_of_edges()))
