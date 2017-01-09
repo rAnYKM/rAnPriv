@@ -68,7 +68,7 @@ class FacebookNetwork:
 
 def main():
     a = FacebookNetwork()
-    a.attribute_stat()
+    # a.attribute_stat()
     price = dict()
     secrets =dict()
     epsilon = dict()

@@ -1,5 +1,5 @@
 # rAnPrivGP
-Social Network Privacy based on SNAP Google Plus Dataset
+Social Network Privacy based on SNAP Google Plus/Facebook Dataset
 
 ## Dataset Loader (Google+) - snap_google.py
 
