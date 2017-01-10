@@ -15,7 +15,6 @@ import logging
 import time
 import pandas as pd
 import networkx as nx
-from collections import Counter
 from ranfig import load_ranfig
 from ran_graph import RanGraph
 

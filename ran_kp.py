@@ -14,7 +14,6 @@
 import collections
 import functools
 import numpy as np
-import networkx as nx
 
 
 class memoized(object):
@@ -87,58 +86,6 @@ class Knapsack:
         result.reverse()
         return dp_recursive(n, self.max_weight), result
 
-    def bnb_solver(self):
-        class Node:
-            def __init__(self, level, weight, value):
-                self.level = level
-                self.weight = weight
-                self.value = value
-                self.bound = 0
-                self.sel = []
-
-            def get_bound(self, items, max_weight):
-                if self.weight > max_weight:
-                    self.bound = 0
-                    return
-                p_bound = self.value
-                j = self.level + 1
-                w = self.weight
-                while j < len(items) and w + items[j][2] <= max_weight:
-                    w += items[j][2]
-                    p_bound += items[j][1]
-                    j += 1
-                if j < len(items):
-                    p_bound += (max_weight - w)*items[j][1]/float(items[j][2])
-                self.bound = p_bound
-
-        # [level, weight, value]
-        u = Node(-1, 0, 0)
-        v = Node(0, 0, 0)
-        queue = [u]
-        max_value = 0
-        max_sel = []
-        while len(queue) != 0:
-            u = queue.pop(0)
-            if u.level == len(self.sorted_items) - 1:
-                continue
-            v.level = u.level + 1
-            v.weight = u.weight + self.sorted_items[v.level][2]
-            v.value = u.value + self.sorted_items[v.level][1]
-            v.sel = list(u.sel)
-            if v.weight <= self.max_weight and v.value > max_value:
-                v.sel.append(self.sorted_items[v.level])
-                max_value = v.value
-                max_sel = v.sel
-            v.get_bound(self.sorted_items, self.max_weight)
-            if v.bound > max_value:
-                queue.append(v)
-            nv = Node(v.level, u.weight, u.value)
-            nv.get_bound(self.sorted_items, self.max_weight)
-            nv.sel = list(u.sel)
-            if nv.bound > max_value:
-                queue.append(nv)
-        return max_value, max_sel
-
 
 class MultiDimensionalKnapsack:
     def __init__(self, items, max_weights):
@@ -179,71 +126,6 @@ class MultiDimensionalKnapsack:
                 max_value += self.items[i - 1][1]
         result.reverse()
         return max_value, result# dp_recursive(n, self.max_weights), result
-
-    def bnb_solver(self):
-        # TODO: There is something wrong with upper bound decision
-        def exceed_weights(w, max_w):
-            for i in xrange(len(w)):
-                if w[i] > max_w[i]:
-                    return True
-            return False
-
-        def reduce_weights(w, max_w):
-            return [max_w[i] - w[i] for i in xrange(len(w))]
-
-        def increase_weights(w, max_w):
-            return [max_w[i] + w[i] for i in xrange(len(w))]
-
-        class Node:
-            def __init__(self, level, weight, value):
-                self.level = level
-                self.weight = list(weight)
-                self.value = value
-                self.bound = 0
-                self.sel = []
-
-            def get_bound(self, items, max_weights):
-                if exceed_weights(self.weight, max_weights):
-                    self.bound = 0
-                    return
-                p_bound = self.value
-                j = self.level + 1
-                w = self.weight
-                while j < len(items) and not exceed_weights(w, reduce_weights(items[j][2], max_weights)):
-                    w = increase_weights(w, items[j][2])
-                    p_bound += items[j][1]
-                    j += 1
-                if j < len(items):
-                    p_bound += sum(reduce_weights(w, max_weights)) * items[j][1] / float(sum(items[j][2]))
-                self.bound = p_bound
-
-        # [level, weight, value]
-        u = Node(-1, [0]*len(self.max_weights), 0)
-        v = Node(0, [0]*len(self.max_weights), 0)
-        queue = [u]
-        max_value = 0
-        max_sel = []
-        while len(queue) != 0:
-            u = queue.pop(0)
-            if u.level == len(self.sorted_items) - 1:
-                continue
-            v.level = u.level + 1
-            v.weight = increase_weights(u.weight, self.sorted_items[v.level][2])
-            v.value = u.value + self.sorted_items[v.level][1]
-            v.sel = list(u.sel)
-            if not exceed_weights(v.weight, self.max_weights) and v.value > max_value:
-                v.sel.append(self.sorted_items[v.level])
-                max_value = v.value
-                max_sel = v.sel
-            v.get_bound(self.sorted_items, self.max_weights)
-            if v.bound > max_value:
-                queue.append(v)
-            nv = Node(v.level, u.weight, u.value)
-            nv.get_bound(self.sorted_items, self.max_weights)
-            nv.sel = list(u.sel)
-            if nv.bound > max_value:
-                queue.append(nv)
-        return max_value, max_sel
 
     def greedy_solver(self, metrics='direct'):
         def exceed_weights(w, max_w):
@@ -577,7 +459,6 @@ def test():
     kp = Knapsack(items, 10)
     print kp.sorted_items
     print kp.dp_solver()
-    print kp.bnb_solver()
 
     m_items = [(0, 5, (1, 2, 3)), (1, 3, (3, 1, 1)), (2, 8, (5, 1, 1)), (3, 2, (2, 2, 2)),
                (4, 4, (1, 5, 1)), (5, 10, (6, 2, 3))]
@@ -585,7 +466,6 @@ def test():
     mkp = MultiDimensionalKnapsack(m_items, m_weights)
     print mkp.sorted_items
     print mkp.dp_solver()
-    print mkp.bnb_solver()
     print mkp.greedy_solver('scale')
     print mkp.greedy_solver('direct')
 
