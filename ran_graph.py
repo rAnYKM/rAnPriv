@@ -144,7 +144,6 @@ class RanGraph:
 
     # ========Ran Graph Building Tools [END]=========
 
-
     def attribute_correlation(self, source, destination):
         """
         Calculate the correlation between source and destination attributes
@@ -275,15 +274,10 @@ class RanGraph:
         logging.debug("Random Masking: %d/%d social relations removed" %
                       (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran, attr_conceal / float(len(self.attr_edge)), (
-        len(self.soc_edge) - new_ran.soc_net.number_of_edges()) / float(
+            len(self.soc_edge) - new_ran.soc_net.number_of_edges()) / float(
             len(self.soc_edge))
 
     def nb_masking(self, secrets, mask_ratio, mode='off'):
-        soc_node = self.soc_net.nodes()
-        attr_node = self.attr_net.nodes()
-        soc_edge = []
-        attr_edge = []
-
         def exceed_weights(w, max_w):
             for i in xrange(len(w)):
                 if w[i] > max_w[i]:
@@ -436,6 +430,8 @@ class RanGraph:
         :param secrets: dict
         :param price: dict
         :param epsilon: dict
+        :param mode: string
+        :param p_mode: string
         :return: RanGraph
         """
         soc_node = self.soc_node
@@ -626,6 +622,7 @@ class RanGraph:
         """
         return a sub graph with satisfying epsilon-privacy for relation masking
         :param secrets: dict
+        :param price: dict
         :param epsilon: dict
         :return: RanGraph
         """
@@ -692,7 +689,7 @@ class RanGraph:
         new_ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("N-Knapsack Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
-        logging.debug("score compare: %f" % (val))
+        logging.debug("score compare: %f" % val)
         return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
     def knapsack_relation(self, secret, epsilon=0.5):
@@ -780,6 +777,7 @@ class RanGraph:
         This function simulates the inference attack on several secrets from an attack_graph
         :param secrets: dict
         :param attack_graph: RanGraph
+        :param epsilon: string
         :return: dict, float
         """
         attack_res = dict()
@@ -814,6 +812,7 @@ class RanGraph:
         VIA social relation information
         :param secrets: dict
         :param attack_graph: RanGraph
+        :param epsilon: dict
         :return: dict, float
         """
         attack_res = dict()

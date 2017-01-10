@@ -20,8 +20,8 @@ import ConfigParser as cp
 
 DEFAULT_GPLUS_DIR = ''
 DEFAULT_FBOOK_DIR = ''
-DEFAULT_DATA_DIR = ''
-DEFAULT_OUT_DIR = ''
+DEFAULT_DATA_DIR = 'data'
+DEFAULT_OUT_DIR = 'out'
 
 
 def make_ranfig(gplus_dir=DEFAULT_GPLUS_DIR, fbook_dir=DEFAULT_FBOOK_DIR, 
@@ -62,7 +62,7 @@ def main(argv):
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('ranfig.py g <gplus_dir> -f <fbook_dir> -d <data_dir> -o <out_dir>')
+            print('ranfig.py -g <gplus_dir> -f <fbook_dir> -d <data_dir> -o <out_dir>')
             sys.exit()
         elif opt in ("-g", "--gfile"):
             gplus_dir = arg

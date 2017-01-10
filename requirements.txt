@@ -1,8 +1,7 @@
 matplotlib==1.5.1
 networkx==1.11
 numpy==1.11.2
-pandas==0.19.1
-PyMySQL==0.7.9
-scikit-learn==0.18.1
 scipy==0.18.1
+pandas==0.19.1
+scikit-learn==0.18.1
 SQLAlchemy==1.1.4
