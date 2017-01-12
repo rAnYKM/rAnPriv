@@ -725,7 +725,7 @@ class RanGraph:
         secret_related = self.di_attr_net.successors(secret)
         return {i: self.attribute_correlation(i, secret) for i in secret_related}
 
-    def secret_disclosure_rate(self, secret, self_error_rate=1):
+    def secret_disclosure_rate(self, secret):
         """
         compare the new ran graph with the original one to obtain the disclosure_rate
         :return: float
@@ -735,16 +735,12 @@ class RanGraph:
             feature = [node for node in self.soc_attr_net.neighbors_iter(soc)
                        if node[0] == 'a' and node != secret]
             rate = self.prob_given_feature(secret, feature)
-            if rate > self_error_rate:
-                print "+1 exceeds"
             if self.soc_attr_net.has_edge(soc, secret):
                 pgf.append(rate)
         pgn = []
         for soc in self.soc_net.nodes_iter():
             neighbor = [node for node in self.soc_net.neighbors_iter(soc)]
             rate = self.prob_given_feature(secret, neighbor)
-            if rate > self_error_rate:
-                print "+1 exceeds"
             if self.soc_attr_net.has_edge(soc, secret):
                 pgn.append(rate)
         return pgf, pgn
