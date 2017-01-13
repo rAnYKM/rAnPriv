@@ -13,6 +13,7 @@
 import os
 import logging
 import time
+import timeit
 import pandas as pd
 import networkx as nx
 from ranfig import load_ranfig
@@ -32,8 +33,7 @@ class FacebookNetwork:
             new_df_list.append({'attr': attr_name,
                                 'count': len(self.ran.soc_attr_net.neighbors(attr_name))})
         attr_stat = pd.DataFrame(new_df_list)
-        print attr_stat.sort_values('count', ascending=False)
-
+        print(attr_stat.sort_values('count', ascending=False))
 
     def __to_ran(self):
         # soc_node, attr_node, soc_edge, attr_edge
@@ -116,6 +116,12 @@ if __name__ == '__main__':
         else:
             secrets[n] = []
             epsilon[n] = []
+    t0 = time.time()
     for node in has_secret:
-        print a.rpg.get_spd(node, secrets[node]),
+        tmp = a.rpg.get_spd(node, secrets[node])
+    logging.debug("not mat=%fs" % (time.time() - t0))
+    t0 = time.time()
+    for node in has_secret:
+        tmp = a.rpg.get_spd_mat(node, secrets[node])
+    logging.debug("mat=%fs" % (time.time() - t0))
 
