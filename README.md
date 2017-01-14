@@ -40,3 +40,12 @@ Configure the directory of the SNAP datasets.
 	>>> facebook.ran.soc_net.number_of_nodes()
 	348
 ```
+
+## Class Description
+
+### **RPGraph** - ran_priv.py
+
+#### Usage
+```python
+    >>> from ran_priv import RPGraph
+```

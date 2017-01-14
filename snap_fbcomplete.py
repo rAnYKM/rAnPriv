@@ -119,9 +119,7 @@ if __name__ == '__main__':
     t0 = time.time()
     for node in has_secret:
         tmp = a.rpg.get_spd(node, secrets[node])
-    logging.debug("not mat=%fs" % (time.time() - t0))
-    t0 = time.time()
-    for node in has_secret:
-        tmp = a.rpg.get_spd_mat(node, secrets[node])
+        print(node, tmp)
     logging.debug("mat=%fs" % (time.time() - t0))
+    t0 = time.time()
 

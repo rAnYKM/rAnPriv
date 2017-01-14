@@ -18,7 +18,7 @@ from scipy import sparse
 import networkx as nx
 from networkx.algorithms import bipartite
 import pandas
-from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack
+from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack, VecKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -32,8 +32,6 @@ class RPGraph:
     >>> attr_edge = [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b'), (3, 'c'), (3, 'd'), (4, 'a'), (4, 'd'), (5, 'c')]
     >>> G = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
     >>> G.get_spd(2, ['a'])
-    {'a': 1.0}
-    >>> G.get_spd_mat(2, ['a'])
     {'a': 1.0}
     """
     @staticmethod
@@ -68,6 +66,31 @@ class RPGraph:
         net.add_edges_from(edge)
         return net
 
+    def __get_attr_array(self):
+        """attribute-user array. {attribute: np.array([0, 0, 1, 1, 0])}
+        :return: attribute - user array dict
+        """
+        attr_dict = {}
+        for attr in self.attr_node:
+            attr_dict[attr] = np.array([int(self.attr_net.has_edge(soc, attr)) for soc in self.soc_node])
+        return attr_dict
+
+    # ==== Important functions ====
+    def prob_secret_on_attributes(self, secret, attributes):
+        """Conditional probability of having a secret on several attributes
+        :param secret: attr_node
+        :param attributes: [attr_node]
+        :return: float
+        """
+        s_array = self.attr_array[secret]
+        a_array = np.ones(len(self.soc_node))
+        for attr in attributes:
+            a_array *= self.attr_array[attr]
+        psa = int(s_array.dot(a_array.transpose()))
+        pa = a_array.sum()
+        return psa / pa
+    # =============================
+
     def inference_attack(self, secrets, attack_graph, epsilon):
         """Simulate the inference attack on several secrets from an attack_graph
         :param secrets: dict
@@ -101,25 +124,72 @@ class RPGraph:
         #     print ctr
         return attack_res, np.average(all_number), sum(ctr) / float(ttn)
 
-    def get_spd(self, node, secrets):
-        """calculate the self privacy disclosure (spd) rate of the given node
-        :param node: string
-        :param secrets: list
-        :return: dict
+    def infer_identify(self, secrets, attack_graph):
+        """Inference {user - attributes - secrets}, re-identify user attributes in the attack_graph
+        :param secrets: {soc_node: [attr_node]}
+        :param attack_graph: RPGraph
+        :return: result dict {soc_node: {secret: spd}}
         """
-        node_attr = [attr for attr in self.attr_net.neighbors_iter(node) if attr not in secrets]
-        spd = {}
-        for secret in secrets:
-            s_set = set(self.attr_net.neighbors(secret))
-            a_set = set(self.soc_net.nodes())
-            for attr in node_attr:
-                a_set &= set(self.attr_net.neighbors(attr))
-            psa = len(s_set & a_set)
-            pa = len(a_set)
-            spd[secret] = psa / pa
-        return spd
+        result = {}
+        for node, secret in secrets.items():
+            node_attr = [attr for attr in self.attr_net.neighbors_iter(node) if attr not in secret]
+            # TODO: Directly use the node_attr instead of attack_attr
+            attack_attr = [attr for attr in node_attr if attack_graph.attr_net.has_edge(node_attr)]
+            spd = {s: attack_graph.prob_secret_on_attributes(s, attack_attr) for s in secret}
+            result[node] = spd
+        return result
 
-    def get_spd_mat(self, node, secrets):
+    # ==== Privacy Protection Algorithms ====
+    def s_knapsack_mask(self, secrets, price, epsilon, mode='greedy', p_mode='single'):
+        """ knapsack-like solver
+        :param secrets: {soc_node: [attr_node]}
+        :param price: {attr_node: value} or {soc_node: {attr_node: value}}
+        :param epsilon: float
+        :param mode: string
+        :param p_mode:
+        :return: RPGraph
+        """
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = self.soc_edge
+        attr_edge = []
+        tmp_res = []
+        for n in self.soc_net.nodes():
+            if len(secrets[n]) == 0:
+                attr_edge += [(n, attr) for attr in self.attr_net.neighbors(n)]
+            else:
+                # TODO: epsilon need to be calculated again
+                eps = epsilon[n]
+                # Calculate the weight between secrets and attributes
+                original_attr = [i for i in self.soc_attr_net.neighbors(n) if i not in secrets[n]]
+                items = list()
+                for attr in original_attr:
+                    weight = self.attr_array[attr]
+                    if p_mode == 'single':
+                        items.append((attr, price[attr], weight))
+                    else:
+                        items.append((attr, price[n][attr], weight))
+                s_arrays = [self.attr_array[s] for s in secrets[n]]
+                if mode == 'dp':
+                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, eps).dp_solver()
+                    tmp_res.append((val, sel))
+                elif mode == 'greedy':
+                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, eps).greedy_solver()
+                    tmp_res.append((val, sel))
+                else:
+                    pass
+                attr_edge += [(n, attr) for attr in sel]
+                attr_edge += [(n, attr) for attr in secrets[n]]
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        # sco = sum([i[0] for i in tmp_res]) + sum([i for i in oth_res])
+        # sco2 = new_ran.utility_measure(secrets, price, p_mode)
+        logging.debug("s-Knapsack Masking (%s): %d/%d attribute edges removed"
+                      % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        # logging.debug("score compare: %f" % (sco2[1]))
+        return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
+    # =======================================
+
+    def get_spd(self, node, secrets):
         """calculate the self privacy disclosure (spd) rate of the given node in matrix mode
         :param node: string
         :param secrets: list
@@ -128,20 +198,8 @@ class RPGraph:
         node_attr = [attr for attr in self.attr_net.neighbors_iter(node) if attr not in secrets]
         spd = {}
         for secret in secrets:
-            s_array = self.attr_array[secret]
-            a_array = np.ones(len(self.soc_node))
-            for attr in node_attr:
-                a_array *= self.attr_array[attr]
-            psa = int(s_array.dot(a_array.transpose()))
-            pa = a_array.sum()
-            spd[secret] = psa / pa
+            spd[secret] = self.prob_secret_on_attributes(secret, node_attr)
         return spd
-
-    def get_attr_array(self):
-        attr_dict = {}
-        for attr in self.attr_node:
-            attr_dict[attr] = np.array([int(self.attr_net.has_edge(soc, attr)) for soc in self.soc_node])
-        return attr_dict
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         self.is_directed = is_directed
@@ -155,7 +213,7 @@ class RPGraph:
         # bigraph row: soc_node, col: attr_node
         self.attr_net = self.__build_bigraph(soc_node, attr_node, attr_edge)
         self.soc_attr_net = self.__build_net(soc_node + attr_node, soc_edge + attr_edge, self.is_directed)
-        self.attr_array = self.get_attr_array()
+        self.attr_array = self.__get_attr_array()
         logging.debug('[RPGraph] RAN built: %d actors, %d edges, %d attributes and %d links'
                       % (self.soc_net.number_of_nodes(), self.soc_net.number_of_edges(),
                          self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
