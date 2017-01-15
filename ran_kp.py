@@ -473,7 +473,7 @@ class VecKnapsack:
         def get_weight(a_ar, s_ar):
             res_li = list()
             for s in s_ar:
-                res_li.append(len(a_ar * s) / float(a_ar.sum()))
+                res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
             return res_li
 
         def exceed_weights(w, max_w):
@@ -508,7 +508,7 @@ class VecKnapsack:
         def get_weight(a_ar, s_ar):
             res_li = list()
             for s in s_ar:
-                res_li.append(len(a_ar * s) / float(a_ar.sum()))
+                res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
             return res_li
 
         def exceed_weights(w, max_w):
@@ -526,7 +526,7 @@ class VecKnapsack:
             sel = -1
             g_weights = list()
             for i in l:
-                weights = get_weight(self.items[i][2] & cs, self.s_sets)
+                weights = get_weight(self.items[i][2] * cs, self.s_arrays)
                 pw = ratio(self.items[i][1], weights, self.max_weights)
                 if pw > max_pw:
                     sel = i
@@ -535,14 +535,14 @@ class VecKnapsack:
             return sel, g_weights
 
         li = range(len(self.items))
-        c_set = set(self.u_set)
+        c_array = np.ones(self.size)
         res = []
         best_value = 0
         while li:
-            choose, new_weight = find_max(li, c_set)
+            choose, new_weight = find_max(li, c_array)
             if not exceed_weights(new_weight, self.max_weights):
                 res.append(self.items[choose][0])
-                c_set &= self.items[choose][2]
+                c_array = c_array * self.items[choose][2]
                 best_value += self.items[choose][1]
             li.pop(li.index(choose))
         return best_value, res

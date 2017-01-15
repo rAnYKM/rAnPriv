@@ -99,11 +99,19 @@ def main():
         else:
             secrets[n] = []
             epsilon[n] = []
+    t0 = time.time()
     a.ran.d_knapsack_mask(secrets, price, epsilon)
+    print(time.time() - t0)
+    t0 = time.time()
     a.ran.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    print(time.time() - t0)
+    t0 = time.time()
+    a.rpg.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    print(time.time() - t0)
 
 if __name__ == '__main__':
-    # main()
+    main()
+    '''
     a = FacebookNetwork()
     secrets = dict()
     epsilon = dict()
@@ -122,4 +130,5 @@ if __name__ == '__main__':
         print(node, tmp)
     logging.debug("mat=%fs" % (time.time() - t0))
     t0 = time.time()
+    '''
 
