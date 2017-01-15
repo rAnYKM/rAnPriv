@@ -1,43 +1,51 @@
-# rAnPrivGP
-Social Network Privacy based on SNAP Google Plus Dataset
+# rAnPriv (Lite) ~ Privacy-Preserving Online Social Network Information Disclosure Scheme
 
-## Dataset Loader (Google+) - snap_google.py
+## Introduction
 
-### Class SnapEgoNet:
+This is the experimental code for privacy-preserving online social network information disclosure scheme, which is my
+undergoing Master's project.
 
-| Variable | Type | Description |
-|-----------|------|-------------|
-| root | String | The root node of ego network |
-| featname | List | All feat names in the ego network |
-| node | Dict | All neighboring nodes of the root node with their feature list|
-| egofeat | List | The root node's feat list |
-| edges | List | Edge list among neighboring nodes |
-| follows | List | The root node's follow list |
-| followers | List| The root node's follower list|
+## Dataset
 
-## Dataset Loader (Facebook) - snap_facebook.py
+The datasets used in this project are from [Stanford Large Network Dataset Collection](https://snap.stanford.edu/data/).
 
-| Variable | Type | Description |
-|-----------|------|-------------|
-| root | String | The root node of ego network |
-| featname | List | All feat names in the ego network |
-| node | Dict | All neighboring nodes of the root node with their feature list|
-| egofeat | List | The root node's feat list |
-| edges | List | Edge list among neighboring nodes |
-| friends | List | The root node's friend list |
-| actor | Dict | Node Dict with path-like attribute access|
-| category | rAnTree | Attribute category tree |
-| ran | RanGraph | Ran Graph Network Collections |
+Currently, we support the following two datasets.
 
+- Google+
 
-## Relational Attribute Network (RAN) - ran_graph.py
+- Facebook
 
-### Class RanGraph
+## Get Started
 
-| Variable | Type | Description |
-|--------|----|-----------|
-| is_directed | Bool | Whether the social network is directed or undirected |
-| soc_net | nx.Graph/nx.DiGraph | Default social network |
-| soc_attr_net | nx.Graph/nx.DiGraph | Mixed social attribute network |
-| attr_net | nx.Graph | Undirected attribute network |
-| di_attr_net | nx.DiGraph | Directed attribute network |
+### Installation
+
+**Note**: The code is written in Python 2.7.x. Currently, it is not compatible with Python 3. 
+
+```bash
+	$ git clone https://github.com/rAnYKM/rAnPrivGP.git
+	$ cd rAnPrivGP
+	$ pip install -r requirements.txt
+```
+Configure the directory of the SNAP datasets.
+
+```bash
+	$ python ranfig.py -g $GOOGLE_PLUS_DIR$ -f $FACEBOOK_DIR$ -d data -o out
+```
+
+### A Test Case
+
+```python
+	>>> from snap_facebook import FacebookEgoNet
+	>>> facebook = FacebookEgoNet('0')
+	>>> facebook.ran.soc_net.number_of_nodes()
+	348
+```
+
+## Class Description
+
+### **RPGraph** - ran_priv.py
+
+#### Usage
+```python
+    >>> from ran_priv import RPGraph
+```

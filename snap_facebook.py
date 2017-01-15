@@ -10,14 +10,15 @@
 # Script Name: snap_facebook.py
 # Date: May. 18, 2016
 
-import os
 import logging
-import networkx as nx
-import ran_tree as rt
+import os
 from collections import Counter
-from ranfig import load_ranfig
-from ran_graph import RanGraph
 
+import networkx as nx
+
+from deprecated import ran_tree as rt
+from ran_graph import RanGraph
+from ranfig import load_ranfig
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 

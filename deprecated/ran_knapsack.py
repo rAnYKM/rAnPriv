@@ -31,7 +31,6 @@ def knapsack(items, max_weight, set_s, whole_set):
     :param whole_set: the whole set
     :return : best value, and the corresponding index list.
     """
-
     # Return the value of the most valuable subsequence of the first i
     # elements in items whose weights sum to no more than j.
     def best_value(i, j, res):

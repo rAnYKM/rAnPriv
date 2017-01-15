@@ -13,11 +13,12 @@
 import os
 import logging
 import time
+import timeit
 import pandas as pd
 import networkx as nx
-from collections import Counter
 from ranfig import load_ranfig
 from ran_graph import RanGraph
+from ran_priv import RPGraph
 
 
 DEFAULT_FILENAME = 'facebook_complete'
@@ -32,8 +33,7 @@ class FacebookNetwork:
             new_df_list.append({'attr': attr_name,
                                 'count': len(self.ran.soc_attr_net.neighbors(attr_name))})
         attr_stat = pd.DataFrame(new_df_list)
-        print attr_stat.sort_values('count', ascending=False)
-
+        print(attr_stat.sort_values('count', ascending=False))
 
     def __to_ran(self):
         # soc_node, attr_node, soc_edge, attr_edge
@@ -52,6 +52,23 @@ class FacebookNetwork:
         ran = RanGraph(soc_node, attr_node, soc_edge, attr_edge, False)
         return ran
 
+    def __to_rpg(self):
+        # soc_node, attr_node, soc_edge, attr_edge
+        soc_node = self.network.nodes()
+        soc_edge = self.network.edges()
+        # get attributes
+        attr_node = self.feat_table['attr'].tolist()
+        # get attribute links
+        attr_edge = list()
+        for index, row in self.node_table.iterrows():
+            uid = str(row['user_id'])
+            profile = str(row['profile'])
+            links = [(uid, self.feat_table['attr'].iloc[int(ind)]) for ind in profile.split(' ')
+                     if ind != 'nan']
+            attr_edge += links
+        rpg = RPGraph(soc_node, attr_node, soc_edge, attr_edge, False)
+        return rpg
+
     def __init__(self, filename=DEFAULT_FILENAME):
         t0 = time.time()
         self.dirs = load_ranfig()
@@ -64,11 +81,12 @@ class FacebookNetwork:
         self.feat_table = pd.read_csv(os.path.join(self.dirs['FBOOK'], filename + '.feats'))
         self.node_table = pd.read_csv(os.path.join(self.dirs['FBOOK'], filename + '.nodes'))
         self.ran = self.__to_ran()
+        self.rpg = self.__to_rpg()
         logging.debug('[snap_fbcomplete] Init Fin. in %f sec' % (time.time() - t0))
 
 def main():
     a = FacebookNetwork()
-    a.attribute_stat()
+    # a.attribute_stat()
     price = dict()
     secrets =dict()
     epsilon = dict()
@@ -81,10 +99,36 @@ def main():
         else:
             secrets[n] = []
             epsilon[n] = []
+    t0 = time.time()
     a.ran.d_knapsack_mask(secrets, price, epsilon)
+    print(time.time() - t0)
+    t0 = time.time()
     a.ran.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    print(time.time() - t0)
+    t0 = time.time()
+    a.rpg.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    print(time.time() - t0)
 
 if __name__ == '__main__':
     main()
-
+    '''
+    a = FacebookNetwork()
+    secrets = dict()
+    epsilon = dict()
+    has_secret = list()
+    for n in a.rpg.soc_node:
+        if a.ran.soc_attr_net.has_edge(n, 'aenslid-538'):
+            secrets[n] = ['aenslid-538']
+            epsilon[n] = [0.4]
+            has_secret.append(n)
+        else:
+            secrets[n] = []
+            epsilon[n] = []
+    t0 = time.time()
+    for node in has_secret:
+        tmp = a.rpg.get_spd(node, secrets[node])
+        print(node, tmp)
+    logging.debug("mat=%fs" % (time.time() - t0))
+    t0 = time.time()
+    '''
 

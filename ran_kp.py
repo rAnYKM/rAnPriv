@@ -14,7 +14,6 @@
 import collections
 import functools
 import numpy as np
-import networkx as nx
 
 
 class memoized(object):
@@ -87,58 +86,6 @@ class Knapsack:
         result.reverse()
         return dp_recursive(n, self.max_weight), result
 
-    def bnb_solver(self):
-        class Node:
-            def __init__(self, level, weight, value):
-                self.level = level
-                self.weight = weight
-                self.value = value
-                self.bound = 0
-                self.sel = []
-
-            def get_bound(self, items, max_weight):
-                if self.weight > max_weight:
-                    self.bound = 0
-                    return
-                p_bound = self.value
-                j = self.level + 1
-                w = self.weight
-                while j < len(items) and w + items[j][2] <= max_weight:
-                    w += items[j][2]
-                    p_bound += items[j][1]
-                    j += 1
-                if j < len(items):
-                    p_bound += (max_weight - w)*items[j][1]/float(items[j][2])
-                self.bound = p_bound
-
-        # [level, weight, value]
-        u = Node(-1, 0, 0)
-        v = Node(0, 0, 0)
-        queue = [u]
-        max_value = 0
-        max_sel = []
-        while len(queue) != 0:
-            u = queue.pop(0)
-            if u.level == len(self.sorted_items) - 1:
-                continue
-            v.level = u.level + 1
-            v.weight = u.weight + self.sorted_items[v.level][2]
-            v.value = u.value + self.sorted_items[v.level][1]
-            v.sel = list(u.sel)
-            if v.weight <= self.max_weight and v.value > max_value:
-                v.sel.append(self.sorted_items[v.level])
-                max_value = v.value
-                max_sel = v.sel
-            v.get_bound(self.sorted_items, self.max_weight)
-            if v.bound > max_value:
-                queue.append(v)
-            nv = Node(v.level, u.weight, u.value)
-            nv.get_bound(self.sorted_items, self.max_weight)
-            nv.sel = list(u.sel)
-            if nv.bound > max_value:
-                queue.append(nv)
-        return max_value, max_sel
-
 
 class MultiDimensionalKnapsack:
     def __init__(self, items, max_weights):
@@ -179,71 +126,6 @@ class MultiDimensionalKnapsack:
                 max_value += self.items[i - 1][1]
         result.reverse()
         return max_value, result# dp_recursive(n, self.max_weights), result
-
-    def bnb_solver(self):
-        # TODO: There is something wrong with upper bound decision
-        def exceed_weights(w, max_w):
-            for i in xrange(len(w)):
-                if w[i] > max_w[i]:
-                    return True
-            return False
-
-        def reduce_weights(w, max_w):
-            return [max_w[i] - w[i] for i in xrange(len(w))]
-
-        def increase_weights(w, max_w):
-            return [max_w[i] + w[i] for i in xrange(len(w))]
-
-        class Node:
-            def __init__(self, level, weight, value):
-                self.level = level
-                self.weight = list(weight)
-                self.value = value
-                self.bound = 0
-                self.sel = []
-
-            def get_bound(self, items, max_weights):
-                if exceed_weights(self.weight, max_weights):
-                    self.bound = 0
-                    return
-                p_bound = self.value
-                j = self.level + 1
-                w = self.weight
-                while j < len(items) and not exceed_weights(w, reduce_weights(items[j][2], max_weights)):
-                    w = increase_weights(w, items[j][2])
-                    p_bound += items[j][1]
-                    j += 1
-                if j < len(items):
-                    p_bound += sum(reduce_weights(w, max_weights)) * items[j][1] / float(sum(items[j][2]))
-                self.bound = p_bound
-
-        # [level, weight, value]
-        u = Node(-1, [0]*len(self.max_weights), 0)
-        v = Node(0, [0]*len(self.max_weights), 0)
-        queue = [u]
-        max_value = 0
-        max_sel = []
-        while len(queue) != 0:
-            u = queue.pop(0)
-            if u.level == len(self.sorted_items) - 1:
-                continue
-            v.level = u.level + 1
-            v.weight = increase_weights(u.weight, self.sorted_items[v.level][2])
-            v.value = u.value + self.sorted_items[v.level][1]
-            v.sel = list(u.sel)
-            if not exceed_weights(v.weight, self.max_weights) and v.value > max_value:
-                v.sel.append(self.sorted_items[v.level])
-                max_value = v.value
-                max_sel = v.sel
-            v.get_bound(self.sorted_items, self.max_weights)
-            if v.bound > max_value:
-                queue.append(v)
-            nv = Node(v.level, u.weight, u.value)
-            nv.get_bound(self.sorted_items, self.max_weights)
-            nv.sel = list(u.sel)
-            if nv.bound > max_value:
-                queue.append(nv)
-        return max_value, max_sel
 
     def greedy_solver(self, metrics='direct'):
         def exceed_weights(w, max_w):
@@ -496,6 +378,7 @@ class SetKnapsack:
             li.pop(li.index(choose))
         return best_value, res
 
+
 class NetKnapsack:
     def __init__(self, soc_net, soc_attr_net, items, secrets, max_weights):
         self.net = soc_net
@@ -571,23 +454,95 @@ class NetKnapsack:
         return best_value, res
 
 
-def test():
-    # items = [(0, 4, 12), (1, 2, 1), (2, 6, 4), (3, 1, 1), (4, 2, 2)]
-    items = [(0, 40, 2), (1, 50, 3.14), (2, 100, 1.98), (3, 95, 5), (4, 30, 3)]
-    kp = Knapsack(items, 10)
-    print kp.sorted_items
-    print kp.dp_solver()
-    print kp.bnb_solver()
+class VecKnapsack:
+    def __init__(self, size, s_arrays, items, max_weights):
+        self.size = size
+        self.s_arrays = s_arrays
+        self.items = items
+        self.max_weights = max_weights
+        self.sorted_items = sorted(self.items, key=lambda tup: float(tup[1]) / sum(self.single_weight(tup[2])), reverse=True)
 
-    m_items = [(0, 5, (1, 2, 3)), (1, 3, (3, 1, 1)), (2, 8, (5, 1, 1)), (3, 2, (2, 2, 2)),
-               (4, 4, (1, 5, 1)), (5, 10, (6, 2, 3))]
-    m_weights = [9, 10, 7]
-    mkp = MultiDimensionalKnapsack(m_items, m_weights)
-    print mkp.sorted_items
-    print mkp.dp_solver()
-    print mkp.bnb_solver()
-    print mkp.greedy_solver('scale')
-    print mkp.greedy_solver('direct')
+    def single_weight(self, a_array):
+        res_li = list()
+        for s_array in self.s_arrays:
+            res_li.append(len(a_array * s_array) / float(a_array.sum()))
+        res_lii = [j / self.max_weights[i] for i, j in enumerate(res_li)]
+        return res_lii
 
-if __name__ == '__main__':
-    test()
+    def dp_solver(self):
+        def get_weight(a_ar, s_ar):
+            res_li = list()
+            for s in s_ar:
+                res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
+            return res_li
+
+        def exceed_weights(w, max_w):
+            for n in range(len(w)):
+                if w[n] > max_w[n]:
+                    return True
+            return False
+
+        def best_value(p, q, res):
+            if p == 0:
+                return 0
+            _, value, c_ar = items[p - 1]
+            weight = get_weight(res * c_ar, self.s_arrays)
+            if exceed_weights(weight, q):
+                return best_value(p - 1, q, res)
+            else:
+                return max(best_value(p - 1, q, res),
+                           best_value(p - 1, q, res * c_ar) + value)
+
+        j = self.max_weights
+        result = []
+        res_set = np.ones(self.size)
+        items = self.items
+        for i in range(len(items), 0, -1):
+            if best_value(i, j, res_set) != best_value(i - 1, j, res_set):
+                result.append(items[i - 1][0])
+                res_set = res_set * items[i - 1][2]
+        result.reverse()
+        return best_value(len(items), self.max_weights, np.ones(self.size)), result
+
+    def greedy_solver(self):
+        def get_weight(a_ar, s_ar):
+            res_li = list()
+            for s in s_ar:
+                res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
+            return res_li
+
+        def exceed_weights(w, max_w):
+            for i in range(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def reduce_weights(w, max_w):
+            return [max_w[i] - w[i] for i in range(len(w))]
+
+        def find_max(l, cs):
+            ratio = lambda p, w, c: (p + 1) / float(sum([j / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
+            max_pw = -1
+            sel = -1
+            g_weights = list()
+            for i in l:
+                weights = get_weight(self.items[i][2] * cs, self.s_arrays)
+                pw = ratio(self.items[i][1], weights, self.max_weights)
+                if pw > max_pw:
+                    sel = i
+                    max_pw = pw
+                    g_weights = weights
+            return sel, g_weights
+
+        li = range(len(self.items))
+        c_array = np.ones(self.size)
+        res = []
+        best_value = 0
+        while li:
+            choose, new_weight = find_max(li, c_array)
+            if not exceed_weights(new_weight, self.max_weights):
+                res.append(self.items[choose][0])
+                c_array = c_array * self.items[choose][2]
+                best_value += self.items[choose][1]
+            li.pop(li.index(choose))
+        return best_value, res
