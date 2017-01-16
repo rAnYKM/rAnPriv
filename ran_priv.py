@@ -109,7 +109,7 @@ class RPGraph:
         spd = {}
         for secret in secrets:
             spd[secret] = self.prob_secret_on_attributes(secret, node_attr)
-        return spd
+        return sp
 
     def inference_attack(self, secrets, attack_graph, epsilon):
         """Simulate the inference attack on several secrets from an attack_graph
@@ -125,8 +125,8 @@ class RPGraph:
             if len(secrets[soc]) == 0:
                 # No secrets
                 continue
-            feature = [node for node in self.soc_attr_net.neighbors(soc)
-                       if node[0] == 'a' and node not in secrets[soc]]
+            feature = [node for node in self.attr_net.neighbors(soc)
+                       if node not in secrets[soc]]
             att_feature = [node for node in feature if attack_graph.soc_attr_net.has_edge(soc, node)]
             # rates = {secret: self.prob_given_feature(secret, feature)
             #          for secret in secrets[soc]}

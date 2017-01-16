@@ -19,13 +19,15 @@ Currently, we support the following two datasets.
 
 ### Installation
 
-**Note**: The code is written in Python 2.7.x. Currently, it is not compatible with Python 3. 
+**Note**: The code is written in Python 2.7.x. Currently, it is not compatible with Python 3 (But in progress).
 
 ```bash
-	$ git clone https://github.com/rAnYKM/rAnPrivGP.git
-	$ cd rAnPrivGP
+	$ git clone https://github.com/rAnYKM/rAnPriv.git
+	$ cd rAnPriv
 	$ pip install -r requirements.txt
 ```
+For Windows, I strongly recommend to use the [Anaconda](https://www.continuum.io/downloads) for the best experience.
+
 Configure the directory of the SNAP datasets.
 
 ```bash

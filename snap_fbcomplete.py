@@ -106,7 +106,7 @@ def main():
     a.ran.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
     print(time.time() - t0)
     t0 = time.time()
-    a.rpg.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    a.rpg.v_knapsack_mask(secrets, price, epsilon, mode='greedy')
     print(time.time() - t0)
 
 if __name__ == '__main__':
