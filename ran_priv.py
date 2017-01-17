@@ -13,12 +13,11 @@
 from __future__ import division, print_function, absolute_import
 
 import time
+import operator
 import logging
 import numpy as np
-from scipy import sparse
 import networkx as nx
-from networkx.algorithms import bipartite
-import pandas
+import pandas as pd
 from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack, VecKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -82,6 +81,18 @@ class RPGraph:
             attr_dict[attr] = tmp_array
         return attr_dict
 
+    def mutual_information(self, attr_a, attr_b):
+        """
+        Return the mutual information between two attribtues
+        :param attr_a: string
+        :param attr_b: string
+        :return: float
+        """
+        vec_a = self.attr_array[attr_a]
+        vec_b = self.attr_array[attr_b]
+        value = len(self.soc_node) * vec_a.dot(vec_b.transpose()) / (vec_a.sum() * vec_b.sum())
+        return np.log2(value)
+
     # ==== Important functions ====
     def prob_secret_on_attributes(self, secret, attributes):
         """Conditional probability of having a secret on several attributes
@@ -109,7 +120,7 @@ class RPGraph:
         spd = {}
         for secret in secrets:
             spd[secret] = self.prob_secret_on_attributes(secret, node_attr)
-        return sp
+        return spd
 
     def inference_attack(self, secrets, attack_graph, epsilon):
         """Simulate the inference attack on several secrets from an attack_graph
@@ -158,23 +169,170 @@ class RPGraph:
             spd = {s: attack_graph.prob_secret_on_attributes(s, attack_attr) for s in secret}
             result[node] = spd
         return result
+
+    def affected_attribute_number(self, secrets):
+        """ Get the original number of attributes owned by the users with secrets
+        :param secrets:
+        :return:
+        """
+        attr_num = 0
+        for n in self.soc_net.nodes_iter():
+            if len(secrets[n]) == 0:
+                # No secrets
+                continue
+            else:
+                attr_num += len([i for i in self.attr_net.neighbors(n) if i not in secrets[n]])
+        return attr_num
     # ==============================
 
     # ==== Privacy Protection Algorithms ====
-    def __get_max_weights(self, secrets, epsilon):
+    def __get_max_weight(self, secret, epsilon, delta):
         """
         epsilon to theta
-        :param secrets:
-        :param epsilon:
-        :return:
+        :param secret: attr_node
+        :param epsilon: float
+        :param delta: float
+        :return: float
         """
-        pass
+        # Prior probability of secret
+        prior = len(self.attr_net.neighbors(secret)) / len(self.soc_node)
+        return np.exp(epsilon) * prior + delta
 
-    def v_knapsack_mask(self, secrets, price, epsilon, mode='greedy', p_mode='single'):
+    def __get_max_weight_dkp(self, secret, epsilon, delta):
+        """
+        epsilon to theta
+        :param secret: attr_node
+        :param epsilon: float
+        :param delta: float
+        :return: float
+        """
+        former_weight = self.__get_max_weight(secret, epsilon, delta)
+        prior = len(self.attr_net.neighbors(secret)) / len(self.soc_node)
+        return np.log2(former_weight / prior)
+
+    def naive_bayes_mask(self, secrets, epsilon, delta, factor=0.1):
+        def exceed_weights(w, max_w):
+            for wi in range(len(w)):
+                if w[wi] > max_w[wi]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = self.soc_edge
+        attr_edge = []
+        for n in soc_node:
+            secret = secrets[n]
+            if len(secret) == 0:
+                attr_edge += [(n, attr) for attr in self.attr_net.neighbors(n)]
+            else:
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.attr_net.neighbors(n)
+                      if i not in secrets[n]]
+                weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+                sw = [sum([self.prob_secret_on_attributes(ff, [s]) * factor +
+                           self.prob_secret_on_attributes(s, [ff]) * (1 - factor)
+                           for s in secret])
+                      for ff in fn]
+                mask_ratio = [self.__get_max_weight(s, epsilon, delta) for s in secret]
+                while exceed_weights(weights, mask_ratio) and fn:
+                    index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                    fn.pop(index)
+                    sw.pop(index)
+                    weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+                attr_edge += [(n, attr) for attr in fn]
+                attr_edge += [(n, s) for s in secret]
+        new_rpg = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        attr_conceal = len(self.attr_edge) - len(attr_edge)
+        logging.debug("Naive Bayes Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
+        return new_rpg
+
+    def entropy_mask(self, secrets, epsilon, delta):
+        """ knapsack-like solver
+        :param secrets: {soc_node: [attr_node]}
+        :param epsilon: float
+        :param delta: float
+        :return: RPGraph
+        """
+        # TODO: Implementation
+        def exceed_weights(w, max_w):
+            for wi in range(len(w)):
+                if w[wi] > max_w[wi]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = self.soc_edge
+        attr_edge = []
+        for n in soc_node:
+            secret = secrets[n]
+            if len(secret) == 0:
+                attr_edge += [(n, attr) for attr in self.attr_net.neighbors(n)]
+            else:
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.attr_net.neighbors(n)
+                      if i not in secrets[n]]
+                weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+                sw = [sum([self.mutual_information(s, ff) for s in secret]) for ff in fn]
+                mask_ratio = [self.__get_max_weight(s, epsilon, delta) for s in secret]
+                while exceed_weights(weights, mask_ratio) and fn:
+                    index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                    fn.pop(index)
+                    sw.pop(index)
+                    weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+                attr_edge += [(n, attr) for attr in fn]
+                attr_edge += [(n, s) for s in secret]
+        new_rpg = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        attr_conceal = len(self.attr_edge) - len(attr_edge)
+        logging.debug("Entropy Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
+        return new_rpg
+
+    def d_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
         """ knapsack-like solver
         :param secrets: {soc_node: [attr_node]}
         :param price: {attr_node: value} or {soc_node: {attr_node: value}}
         :param epsilon: float
+        :param delta: float
+        :param mode: string
+        :param p_mode: string
+        :return: RPGraph
+        """
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = self.soc_edge
+        attr_edge = []
+        for n in self.soc_net.nodes():
+            if len(secrets[n]) == 0:
+                attr_edge += [(n, attr) for attr in self.attr_net.neighbors(n)]
+            else:
+                max_weights = [self.__get_max_weight_dkp(secret, epsilon, delta) for secret in secrets[n]]
+                # Calculate the weight between secrets and attributes
+                fn = [i for i in self.attr_net.neighbors(n) if i not in secrets[n]]
+                items = list()
+                for a in fn:
+                    weight = tuple([self.mutual_information(a, s) for s in secrets[n]])
+                    if p_mode == 'single':
+                        items.append((a, price[a], weight))
+                    else:
+                        items.append((a, price[n][a], weight))
+                if mode == 'dp':
+                    val, sel = MultiDimensionalKnapsack(items, max_weights).dp_solver()
+                else:
+                    val, sel = MultiDimensionalKnapsack(items, max_weights).greedy_solver('scale')
+                attr_edge += [(n, attr[0]) for attr in sel]
+                attr_edge += [(n, attr) for attr in secrets[n]]
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("d-Knapsack Masking (%s): %d/%d attribute edges removed"
+                      % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
+        return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
+
+    def v_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
+        """ knapsack-like solver
+        :param secrets: {soc_node: [attr_node]}
+        :param price: {attr_node: value} or {soc_node: {attr_node: value}}
+        :param epsilon: float
+        :param delta: float
         :param mode: string
         :param p_mode: string
         :return: RPGraph
@@ -189,7 +347,7 @@ class RPGraph:
                 attr_edge += [(n, attr) for attr in self.attr_net.neighbors(n)]
             else:
                 # TODO: epsilon need to be calculated again
-                eps = epsilon[n]
+                max_weights = [self.__get_max_weight(secret, epsilon, delta) for secret in secrets[n]]
                 # Calculate the weight between secrets and attributes
                 original_attr = [i for i in self.attr_net.neighbors(n) if i not in secrets[n]]
                 items = list()
@@ -201,10 +359,10 @@ class RPGraph:
                         items.append((attr, price[n][attr], weight))
                 s_arrays = [self.attr_array[s] for s in secrets[n]]
                 if mode == 'dp':
-                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, eps).dp_solver()
+                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, max_weights).dp_solver()
                     tmp_res.append((val, sel))
                 elif mode == 'greedy':
-                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, eps).greedy_solver()
+                    val, sel = VecKnapsack(len(soc_node), s_arrays, items, max_weights).greedy_solver()
                     tmp_res.append((val, sel))
                 else:
                     pass
@@ -233,7 +391,7 @@ class RPGraph:
         # self.soc_attr_net = self.__build_net(soc_node + attr_node, soc_edge + attr_edge, self.is_directed)
         t0 = time.time()
         self.attr_array = self.__get_attr_array()
-        logging.debug('attr_array time: %f s' % (time.time() - t0))
+        # logging.debug('attr_array time: %f s' % (time.time() - t0))
         logging.debug('[RPGraph] RPGraph built: %d actors, %d edges, %d attributes and %d links'
                       % (self.soc_net.number_of_nodes(), self.soc_net.number_of_edges(),
                          self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),

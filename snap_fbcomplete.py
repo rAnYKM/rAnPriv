@@ -95,18 +95,22 @@ def main():
     for n in a.ran.soc_node:
         if a.ran.soc_attr_net.has_edge(n, 'aenslid-538'):
             secrets[n] = ['aenslid-538']
-            epsilon[n] = [0.4]
+            epsilon[n] = 0.1
         else:
             secrets[n] = []
             epsilon[n] = []
+    print(a.rpg.affected_attribute_number(secrets))
     t0 = time.time()
-    a.ran.d_knapsack_mask(secrets, price, epsilon)
+    a.rpg.d_knapsack_mask(secrets, price, 0.1, 0.1, mode='greedy')
     print(time.time() - t0)
     t0 = time.time()
-    a.ran.s_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    a.rpg.naive_bayes_mask(secrets, 0.1, 0.1, 0.1)
     print(time.time() - t0)
     t0 = time.time()
-    a.rpg.v_knapsack_mask(secrets, price, epsilon, mode='greedy')
+    a.rpg.entropy_mask(secrets, 0.1, 0.1)
+    print(time.time() - t0)
+    t0 = time.time()
+    a.rpg.v_knapsack_mask(secrets, price, 0.1, 0.1, mode='greedy')
     print(time.time() - t0)
 
 if __name__ == '__main__':
