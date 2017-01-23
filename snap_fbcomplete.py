@@ -13,7 +13,6 @@
 import os
 import logging
 import time
-import timeit
 import pandas as pd
 import networkx as nx
 from ranfig import load_ranfig
@@ -36,6 +35,7 @@ class FacebookNetwork:
         print(attr_stat.sort_values('count', ascending=False))
 
     def __to_ran(self):
+        """ Import the SNAP Facebook dataset as a RanGraph """
         # soc_node, attr_node, soc_edge, attr_edge
         soc_node = self.network.nodes()
         soc_edge = self.network.edges()
@@ -53,6 +53,7 @@ class FacebookNetwork:
         return ran
 
     def __to_rpg(self):
+        """ Import the SNAP Facebook dataset as a RPGraph """
         # soc_node, attr_node, soc_edge, attr_edge
         soc_node = self.network.nodes()
         soc_edge = self.network.edges()
@@ -100,39 +101,21 @@ def main():
             secrets[n] = []
             epsilon[n] = []
     print(a.rpg.affected_attribute_number(secrets))
+    epsilon = 0.1
+    delta = 0.001
     t0 = time.time()
-    a.rpg.d_knapsack_mask(secrets, price, 0.1, 0.1, mode='greedy')
+    a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
     t0 = time.time()
-    a.rpg.naive_bayes_mask(secrets, 0.1, 0.1, 0.1)
+    a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
     print(time.time() - t0)
     t0 = time.time()
-    a.rpg.entropy_mask(secrets, 0.1, 0.1)
+    a.rpg.entropy_mask(secrets, epsilon, delta)
     print(time.time() - t0)
     t0 = time.time()
-    a.rpg.v_knapsack_mask(secrets, price, 0.1, 0.1, mode='greedy')
+    a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
 
 if __name__ == '__main__':
     main()
-    '''
-    a = FacebookNetwork()
-    secrets = dict()
-    epsilon = dict()
-    has_secret = list()
-    for n in a.rpg.soc_node:
-        if a.ran.soc_attr_net.has_edge(n, 'aenslid-538'):
-            secrets[n] = ['aenslid-538']
-            epsilon[n] = [0.4]
-            has_secret.append(n)
-        else:
-            secrets[n] = []
-            epsilon[n] = []
-    t0 = time.time()
-    for node in has_secret:
-        tmp = a.rpg.get_spd(node, secrets[node])
-        print(node, tmp)
-    logging.debug("mat=%fs" % (time.time() - t0))
-    t0 = time.time()
-    '''
 
