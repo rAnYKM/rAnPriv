@@ -380,9 +380,9 @@ class SetKnapsack:
 
 
 class NetKnapsack:
-    def __init__(self, soc_net, soc_attr_net, items, secrets, max_weights):
+    def __init__(self, soc_net, attr_net, items, secrets, max_weights):
         self.net = soc_net
-        self.attr_net = soc_attr_net
+        self.attr_net = attr_net
         self.items = items
         self.secrets = secrets
         self.max_weights = max_weights
@@ -391,15 +391,12 @@ class NetKnapsack:
         def get_weight(set_a, s_sets):
             result = list()
             for set_s in s_sets:
-                if len(set_a) == 0:
-                    print "if you see this, something probably goes wrong"
-                    return None
                 result.append(len(set_a & set_s) / float(len(set_a)))
             # print len(result), result,
             return result
 
         def exceed_weights(w, max_w):
-            for i in xrange(len(w)):
+            for i in range(len(w)):
                 if w[i] > max_w[i]:
                     return True
             return False
@@ -448,9 +445,6 @@ class NetKnapsack:
                     current_set[e[1]] &= set(self.net.neighbors(e[0]))
                     best_value += self.items[choose][1]
             li.remove(choose)
-            if len(li) % 100 == 0:
-                print len(li),
-        print 'fin.'
         return best_value, res
 
 
@@ -545,4 +539,75 @@ class VecKnapsack:
                 c_array = c_array * self.items[choose][2]
                 best_value += self.items[choose][1]
             li.pop(li.index(choose))
+        return best_value, res
+
+class RelKnapsack:
+    def __init__(self, soc_net, t_ar, n_ar, items, secrets, max_weights):
+        self.net = soc_net
+        self.t_ar = t_ar
+        self.n_ar = n_ar
+        self.items = items
+        self.secrets = secrets
+        self.max_weights = max_weights
+
+    def greedy_solver(self):
+        def get_weight(a_ar, s_ar):
+            res_li = list()
+            for s in s_ar:
+                res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
+            return res_li
+
+        def exceed_weights(w, max_w):
+            for i in range(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        def find_max(lis, c_ars):
+            sel = -1
+            max_pw = -1
+            g_weight = []
+            for i in lis:
+                edge, price = self.items[i]
+                u, v = edge
+                # u node constraints
+                secret = self.secrets[u]
+                max_weight0 = self.max_weights[u]
+                # s_sets = [set(self.attr_net.neighbors(s)) for s in secret]
+                s_ars = [self.t_ar[s] for s in secret]
+                a_ar  = self.n_ar[v]
+                weights0 = get_weight(a_ar * c_ars[u], s_ars)
+
+                # v node constraints
+                secret = self.secrets[v]
+                max_weight1 = self.max_weights[v]
+                # s_sets = [set(self.attr_net.neighbors(s)) for s in secret]
+                s_ars = [self.t_ar[s] for s in secret]
+                a_ar  = self.n_ar[u]
+                weights1 = get_weight(a_ar * c_ars[v], s_ars)
+
+                pw = price / float(sum([x / float(max_weight0[y]) for y, x in enumerate(weights0)]) +
+                                   sum([x / float(max_weight1[y]) for y, x in enumerate(weights1)]) + 1)
+                if pw > max_pw:
+                    max_pw = pw
+                    sel = i
+                    g_weight = (weights0, weights1)
+            return sel, g_weight
+
+        current_array = {node: np.ones(self.net.number_of_nodes()) for node in self.net.nodes()}
+        li = range(len(self.items))
+        res = list()
+        best_value = 0
+        while li:
+            # each edge only relates to 2 nodes and their constraints
+            choose, new_weight = find_max(li, current_array)
+            e = self.items[choose][0]
+            # print(e, new_weight)
+            if not exceed_weights(new_weight[0], self.max_weights[e[0]]):
+                if not exceed_weights(new_weight[1], self.max_weights[e[1]]):
+                    res.append(self.items[choose][0])
+                    current_array[e[0]] *= self.n_ar[e[1]]
+                    current_array[e[1]] *= self.n_ar[e[0]]
+                    best_value += self.items[choose][1]
+            li.remove(choose)
         return best_value, res

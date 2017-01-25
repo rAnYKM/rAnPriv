@@ -18,7 +18,7 @@ import logging
 import numpy as np
 import networkx as nx
 import pandas as pd
-from ran_kp import MultiDimensionalKnapsack, SetKnapsack, NetKnapsack, VecKnapsack
+from ran_kp import MultiDimensionalKnapsack, VecKnapsack, RelKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -81,14 +81,31 @@ class RPGraph:
             attr_dict[attr] = tmp_array
         return attr_dict
 
-    def mutual_information(self, attr_a, attr_b):
+    def __get_neighbor_array(self):
+        """user-user array. {node: np.array([0, 0, 1, 1, 0])}
+        :return: user - user array dict
         """
-        Return the mutual information between two attribtues
+        node_dict = {}
+        sup_soc = {n: i for i, n in enumerate(self.soc_node)}
+        for node in self.soc_node:
+            tmp_array = np.zeros(len(self.soc_node))
+            for soc in self.soc_net.neighbors_iter(node):
+                tmp_array[sup_soc[soc]] = 1
+            node_dict[node] = tmp_array
+        return node_dict
+
+    def mutual_information(self, attr_a, attr_b, is_attr=True):
+        """
+        Return the mutual information between two attribtues (if is_attr is False, then relation)
         :param attr_a: string
         :param attr_b: string
+        :param is_attr: bool
         :return: float
         """
-        vec_a = self.attr_array[attr_a]
+        if is_attr:
+            vec_a = self.attr_array[attr_a]
+        else:
+            vec_a = self.neighbor_array[attr_a]
         vec_b = self.attr_array[attr_b]
         value = len(self.soc_node) * vec_a.dot(vec_b.transpose()) / (vec_a.sum() * vec_b.sum())
         return np.log2(value)
@@ -375,6 +392,81 @@ class RPGraph:
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
         # logging.debug("score compare: %f" % (sco2[1]))
         return new_ran
+
+    def d_knapsack_relation(self, secrets, price, epsilon, delta):
+        """
+        return a sub graph with satisfying epsilon-privacy for relation masking
+        :param secrets: dict
+        :param price: dict
+        :param epsilon: float
+        :param delta: float
+        :return: RPGraph
+        """
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        # Serialize secrets and epsilon
+        node_index = dict()
+        new_eps = list()
+        current = 0
+        for node, secret in secrets.items():
+            if secret:
+                node_index[node] = current
+            else:
+                node_index[node] = -1  # NO SECRET NODE
+            for sec in secret:
+                new_eps.append(self.__get_max_weight(sec, epsilon, delta))
+                current += 1
+        items = list()
+        for edge in self.soc_net.edges():
+            u = edge[0]
+            v = edge[1]
+            if len(secrets[u]) == 0 and len(secrets[v]) == 0:
+                soc_edge.append(edge)
+                continue
+            else:
+                # Calculate weight
+                weight = [0] * len(new_eps)
+                for index, sec in enumerate(secrets[u]):
+                    weight[node_index[u] + index] = self.mutual_information(v, sec, False)
+                for index, sec in enumerate(secrets[v]):
+                    weight[node_index[v] + index] = self.mutual_information(u, sec, False)
+                item = (edge, price[edge], weight)
+                items.append(item)
+        val, sel = MultiDimensionalKnapsack(items, new_eps).greedy_solver('scale')
+        soc_edge += [choose[0] for choose in sel]
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("d-Knapsack Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+
+    def v_knapsack_relation(self, secrets, price, epsilon, delta):
+        """**AVOID USING THIS FUNCTION** EPPD is not suitable for the relation masking"""
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        attr_edge = self.attr_edge
+        soc_edge = list()
+        # we want to globally consider a whole optimization problem
+        # Get all max_weight and constraints
+        # constraints is mapped by node
+        items = list()
+        for edge in self.soc_net.edges():
+            if not (secrets[edge[0]] or secrets[edge[1]]):
+                soc_edge.append(edge)
+                continue
+            item = (edge, price[edge])
+            items.append(item)
+        max_weights = {n: [self.__get_max_weight(secret, epsilon, delta) for secret in secrets[n]]
+                       for n in self.soc_net.nodes()}
+        val, sel = RelKnapsack(self.soc_net, self.attr_array, self.neighbor_array,
+                               items, secrets, max_weights).greedy_solver()
+        soc_edge += sel
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("V-Knapsack Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
+        logging.debug("score compare: %f" % val)
+        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
     # =======================================
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
@@ -391,9 +483,13 @@ class RPGraph:
         # self.soc_attr_net = self.__build_net(soc_node + attr_node, soc_edge + attr_edge, self.is_directed)
         t0 = time.time()
         self.attr_array = self.__get_attr_array()
-        # logging.debug('attr_array time: %f s' % (time.time() - t0))
-        logging.debug('[RPGraph] RPGraph built: %d actors, %d edges, %d attributes and %d links'
-                      % (self.soc_net.number_of_nodes(), self.soc_net.number_of_edges(),
+        self.neighbor_array = self.__get_neighbor_array()
+        logging.debug('[RPGraph] Support array time (%d, %d) : %f s' % (len(self.attr_array.keys()),
+                                                                        len(self.neighbor_array.keys()),
+                                                                        time.time() - t0))
+        logging.debug('[RPGraph] RPGraph built: %d (%d) actors, %d (%d) edges, %d attributes and %d links'
+                      % (self.soc_net.number_of_nodes(), len(self.soc_node),
+                         self.soc_net.number_of_edges(), len(self.soc_edge),
                          self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
                          self.attr_net.number_of_edges()))
 

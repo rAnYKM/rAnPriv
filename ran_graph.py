@@ -943,7 +943,7 @@ class RanGraph:
                                     for w in u_set & v_set])
         return values
 
-    def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False, has_attr_net=False):
+    def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False, has_attr_net=True):
         if is_directed:
             self.is_directed = True
         else:

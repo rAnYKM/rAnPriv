@@ -81,7 +81,7 @@ class FacebookNetwork:
         # Load Node Features
         self.feat_table = pd.read_csv(os.path.join(self.dirs['FBOOK'], filename + '.feats'))
         self.node_table = pd.read_csv(os.path.join(self.dirs['FBOOK'], filename + '.nodes'))
-        self.ran = self.__to_ran()
+        # self.ran = self.__to_ran()
         self.rpg = self.__to_rpg()
         logging.debug('[snap_fbcomplete] Init Fin. in %f sec' % (time.time() - t0))
 
@@ -89,17 +89,16 @@ def main():
     a = FacebookNetwork()
     # a.attribute_stat()
     price = dict()
+    rprice = dict()
     secrets =dict()
     epsilon = dict()
-    for i in a.ran.attr_node:
+    for i in a.rpg.attr_node:
         price[i] = 1
-    for n in a.ran.soc_node:
-        if a.ran.soc_attr_net.has_edge(n, 'aenslid-538'):
+    for n in a.rpg.soc_node:
+        if a.rpg.attr_net.has_edge(n, 'aenslid-538'):
             secrets[n] = ['aenslid-538']
-            epsilon[n] = 0.1
         else:
             secrets[n] = []
-            epsilon[n] = []
     print(a.rpg.affected_attribute_number(secrets))
     epsilon = 0.1
     delta = 0.001
@@ -114,6 +113,16 @@ def main():
     print(time.time() - t0)
     t0 = time.time()
     a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
+    print(time.time() - t0)
+
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    # t0 = time.time()
+    # a.ran.s_knapsack_relation_global(secrets, rprice, epsilon)
+    # print(time.time() - t0)
+    # print('3734' in a.rpg.neighbor_array)
+    t0 = time.time()
+    a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
     print(time.time() - t0)
 
 if __name__ == '__main__':
