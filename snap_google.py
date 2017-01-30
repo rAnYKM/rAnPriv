@@ -210,7 +210,6 @@ class SnapEgoNet:
                     flag = True
             if not flag:
                 cate_feat[-1] += 1
-        print cate_feat
         return cate_feat
 
     def __init__(self, ego_id):

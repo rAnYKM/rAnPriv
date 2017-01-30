@@ -505,6 +505,15 @@ class VecKnapsack:
                 res_li.append(a_ar.dot(s.transpose()) / float(a_ar.sum()))
             return res_li
 
+        def get_weight_2(a_ar, cs, s_ar):
+            res_li = list()
+            for s in s_ar:
+                va = a_ar.dot(s.transpose()) / float(a_ar.sum())
+                b_ar = a_ar * cs
+                vb = b_ar.dot(s.transpose()) / float(b_ar.sum())
+                res_li.append(np.log2(vb / va))
+            return res_li
+
         def exceed_weights(w, max_w):
             for i in range(len(w)):
                 if w[i] > max_w[i]:
@@ -514,14 +523,17 @@ class VecKnapsack:
         def reduce_weights(w, max_w):
             return [max_w[i] - w[i] for i in range(len(w))]
 
+        def calculate_ratio(p, w, c):
+            return (p + 1) / float(sum([(j + 1) / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
+
         def find_max(l, cs):
-            ratio = lambda p, w, c: (p + 1) / float(sum([j / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
             max_pw = -1
             sel = -1
             g_weights = list()
             for i in l:
                 weights = get_weight(self.items[i][2] * cs, self.s_arrays)
-                pw = ratio(self.items[i][1], weights, self.max_weights)
+                # weights = get_weight_2(self.items[i][2], cs, self.s_arrays)
+                pw = calculate_ratio(self.items[i][1], weights, self.max_weights)
                 if pw > max_pw:
                     sel = i
                     max_pw = pw
