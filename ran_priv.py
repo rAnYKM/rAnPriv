@@ -18,6 +18,7 @@ import logging
 import numpy as np
 import networkx as nx
 import pandas as pd
+from scipy.stats import entropy
 from ran_kp import MultiDimensionalKnapsack, VecKnapsack, RelKnapsack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -110,6 +111,30 @@ class RPGraph:
         value = len(self.soc_node) * vec_a.dot(vec_b.transpose()) / (vec_a.sum() * vec_b.sum())
         return np.log2(value)
 
+    @staticmethod
+    def KL_divergence(arr_a, arr_b):
+        """
+        Calculate the KL divergence between two arrays
+        :param arr_a: np.array
+        :param arr_b: np.array
+        :return: float
+        """
+        return entropy(arr_a, arr_b)
+
+    @staticmethod
+    def L1_error(arr_a, arr_b):
+        """
+        Calculate the L1 error between two arrays
+        :param arr_a: np.array
+        :param arr_b: np.array
+        :return: float
+        """
+        if arr_a.shape[0] < arr_b.shape[0]:
+            arr_a = np.append(arr_a, [0] * (arr_b.shape[0] - arr_a.shape[0]))
+        else:
+            arr_b = np.append(arr_b, [0] * (arr_a.shape[0] - arr_b.shape[0]))
+        return np.abs(arr_a - arr_b).sum()
+
     # ==== Important functions ====
     def prob_secret_on_attributes(self, secret, attributes):
         """Conditional probability of having a secret on several attributes
@@ -138,6 +163,24 @@ class RPGraph:
         for secret in secrets:
             spd[secret] = self.prob_secret_on_attributes(secret, node_attr)
         return spd
+
+    def get_degree_distribution(self, graph):
+        """Get Node Degree Distribution (Probability)
+        :param graph: nx.Graph
+        :return: np.array
+        """
+        histogram = np.array(nx.degree_histogram(graph))
+        return histogram / histogram.sum()
+
+    def cmp_soc_degree_L1_error(self, other_rpg):
+        arr_a = self.get_degree_distribution(self.soc_net)
+        arr_b = self.get_degree_distribution(other_rpg.soc_net)
+        return self.L1_error(arr_a, arr_b)
+
+    def cmp_attr_degree_L1_error(self, other_rpg):
+        arr_a = self.get_degree_distribution(self.attr_net)
+        arr_b = self.get_degree_distribution(other_rpg.attr_net)
+        return self.L1_error(arr_a, arr_b)
 
     def inference_attack(self, secrets, attack_graph, epsilon):
         """Simulate the inference attack on several secrets from an attack_graph
@@ -342,7 +385,7 @@ class RPGraph:
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("d-Knapsack Masking (%s): %d/%d attribute edges removed"
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
-        return new_ran, (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
+        return new_ran # , (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
     def v_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
         """ knapsack-like solver
@@ -439,7 +482,7 @@ class RPGraph:
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("d-Knapsack Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
-        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+        return new_ran # , (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
     def v_knapsack_relation(self, secrets, price, epsilon, delta):
         """**AVOID USING THIS FUNCTION** EPPD is not suitable for the relation masking"""

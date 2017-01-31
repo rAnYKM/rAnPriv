@@ -101,10 +101,11 @@ def main():
             secrets[n] = []
     print(a.rpg.affected_attribute_number(secrets))
     epsilon = 0.1
-    delta = 0.001
+    delta = 0.1
     t0 = time.time()
-    a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
+    new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
+    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
     """
     t0 = time.time()
     a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
@@ -116,15 +117,17 @@ def main():
     t0 = time.time()
     new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
-    # for i in a.rpg.soc_net.edges():
-    #     rprice[i] = 1
+    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
     # t0 = time.time()
     # a.ran.s_knapsack_relation_global(secrets, rprice, epsilon)
     # print(time.time() - t0)
     # print('3734' in a.rpg.neighbor_array)
-    # t0 = time.time()
-    # a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
-    # print(time.time() - t0)
+    t0 = time.time()
+    new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
+    print(time.time() - t0)
+    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
 
 if __name__ == '__main__':
     main()
