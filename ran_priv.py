@@ -18,6 +18,7 @@ import logging
 import numpy as np
 import networkx as nx
 import pandas as pd
+from collections import Counter
 from scipy.stats import entropy
 from ran_kp import MultiDimensionalKnapsack, VecKnapsack, RelKnapsack
 
@@ -170,6 +171,18 @@ class RPGraph:
         :return: np.array
         """
         histogram = np.array(nx.degree_histogram(graph))
+        # My histogram calculation
+
+        degree_list = [graph.degree(node) for node in graph.nodes()]
+        hist = []
+        ctr = Counter(degree_list)
+        for index in range(max(ctr.keys()) + 1):
+            if index in ctr:
+                hist.append(ctr[index])
+            else:
+                hist.append(0)
+        histogram = np.array(hist)
+
         return histogram / histogram.sum()
 
     def cmp_soc_degree_L1_error(self, other_rpg):
@@ -509,7 +522,7 @@ class RPGraph:
         logging.debug("V-Knapsack Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
         logging.debug("score compare: %f" % val)
-        return new_ran, (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+        return new_ran # , (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
     # =======================================
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):

@@ -12,12 +12,14 @@
 
 import logging
 import os
+import time
 from collections import Counter
 
 import networkx as nx
 
 from deprecated import ran_tree as rt
 from ran_graph import RanGraph
+from ran_priv import RPGraph
 from ranfig import load_ranfig
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -98,6 +100,31 @@ class FacebookEgoNet:
                          ran.soc_attr_net.number_of_nodes() - ran.soc_net.number_of_nodes(),
                          ran.soc_net.number_of_edges(),
                          ran.soc_attr_net.number_of_edges() - ran.soc_net.number_of_edges()))
+        return ran
+
+    def __build_rpg(self):
+        network = nx.Graph(self.network)
+        labels = [node for node in network.nodes_iter()]
+        attr_labels = ['a' + self.__abbr_attr(feat[1]) + feat[0]
+                       for feat in self.featname]
+        # Build Relational Attributes
+        attr_edge = list()
+        for node in network.nodes_iter():
+            if node == self.root:
+                feature = self.egofeat
+            else:
+                feature = self.node[node]
+            for f in feature:
+                attr_edge.append((node, 'a' + self.__abbr_attr(self.featname[f][1]) + self.featname[f][0]))
+        soc_node = labels
+        attr_node = attr_labels
+        soc_edge = network.edges()
+        ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug('%d social nodes, %d attribute nodes, %d social relations, %d attribute links'
+                      % (ran.soc_net.number_of_nodes(),
+                         ran.attr_net.number_of_nodes() - ran.soc_net.number_of_nodes(),
+                         ran.soc_net.number_of_edges(),
+                         ran.attr_net.number_of_edges() - ran.soc_net.number_of_edges()))
         return ran
 
     def __better_feature_structure(self):
@@ -255,12 +282,13 @@ class FacebookEgoNet:
         self.category = self.__better_feature_structure()
         self.actor = self.__better_node_feature()
         self.ran = self.__build_ran()
+        self.rpg = self.__build_rpg()
 
 
 def main():
-    fb_net = FacebookEgoNet('3980')
+    # fb_net = FacebookEgoNet('3980')
     # fb_net.get_network()
-    fb_net.attribute_stat()
+    # fb_net.attribute_stat()
     # print fb_net.get_ego_features()
     # fb_net.write_gexf_network(fb_net.ran, 'ran')
     # attr = [ver for ver in fb_net.ran.nodes() if ver[0] == 'a']
@@ -273,6 +301,53 @@ def main():
     # good_def_ran = fb_net.ran.knapsack_mask('aes50', 0.7)
     # edge_def_ran = fb_net.ran.knapsack_relation('aes50', 0.7)
     # print good_def_ran.secret_attack('aes50', att_ran)
+    a = FacebookEgoNet('0')
+    # a.attribute_stat()
+    price = dict()
+    rprice = dict()
+    secrets = dict()
+    epsilon = dict()
+    for i in a.rpg.attr_node:
+        price[i] = 1
+    for n in a.rpg.soc_node:
+        if a.rpg.attr_net.has_edge(n, 'aensl-51'):
+            secrets[n] = ['aensl-51']
+        else:
+            secrets[n] = []
+    print(a.rpg.affected_attribute_number(secrets))
+    a.attribute_stat()
+    epsilon = 0.1
+    delta = 0.1
+    t0 = time.time()
+    new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
+    print(time.time() - t0)
+    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    """
+    t0 = time.time()
+    a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
+    print(time.time() - t0)
+    t0 = time.time()
+    a.rpg.entropy_mask(secrets, epsilon, delta)
+    print(time.time() - t0)
+    """
+    t0 = time.time()
+    new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
+    print(time.time() - t0)
+    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    # t0 = time.time()
+    # a.ran.s_knapsack_relation_global(secrets, rprice, epsilon)
+    # print(time.time() - t0)
+    # print('3734' in a.rpg.neighbor_array)
+    t0 = time.time()
+    new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
+    print(time.time() - t0)
+    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
+    t0 = time.time()
+    new_ran = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
+    print(time.time() - t0)
+    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
 
 
 if __name__ == '__main__':

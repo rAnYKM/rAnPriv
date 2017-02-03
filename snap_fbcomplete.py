@@ -128,6 +128,10 @@ def main():
     new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
     print(time.time() - t0)
     print(a.rpg.cmp_soc_degree_L1_error(new_ran))
+    t0 = time.time()
+    new_ran = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
+    print(time.time() - t0)
+    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
 
 if __name__ == '__main__':
     main()
