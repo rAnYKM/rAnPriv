@@ -18,6 +18,7 @@ import networkx as nx
 from ranfig import load_ranfig
 from ran_graph import RanGraph
 from ran_priv import RPGraph
+from ran_inference import InferenceAttack
 
 
 DEFAULT_FILENAME = 'facebook_complete'
@@ -101,11 +102,17 @@ def main():
             secrets[n] = []
     print(a.rpg.affected_attribute_number(secrets))
     epsilon = 0.1
-    delta = 0.1
+    delta = 0.01
+    org = InferenceAttack(a.rpg, secrets)
+    clf, result = org.lr_classifier('aenslid-538')
+    print result
     t0 = time.time()
     new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
     print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    result2 = org.evaluate(clf.predict(org.rpg_attr_vector(new_ran, 'aenslid-538')), org.rpg_labels(new_ran, 'aenslid-538'))
+    clf2, result25 = InferenceAttack(new_ran, secrets).lr_classifier('aenslid-538')
+    print result2, result25
     """
     t0 = time.time()
     a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
@@ -118,12 +125,17 @@ def main():
     new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
     print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    result3 = org.evaluate(clf.predict(org.rpg_attr_vector(new_ran, 'aenslid-538')),
+                           org.rpg_labels(new_ran, 'aenslid-538'))
+    clf3, result35 = InferenceAttack(new_ran, secrets).lr_classifier('aenslid-538')
+    print result3, result35
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     # t0 = time.time()
     # a.ran.s_knapsack_relation_global(secrets, rprice, epsilon)
     # print(time.time() - t0)
     # print('3734' in a.rpg.neighbor_array)
+    '''
     t0 = time.time()
     new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
     print(time.time() - t0)
@@ -132,6 +144,7 @@ def main():
     new_ran = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
     print(time.time() - t0)
     print(a.rpg.cmp_soc_degree_L1_error(new_ran))
+    '''
 
 if __name__ == '__main__':
     main()

@@ -310,8 +310,8 @@ def main():
     for i in a.rpg.attr_node:
         price[i] = 1
     for n in a.rpg.soc_node:
-        if a.rpg.attr_net.has_edge(n, 'aensl-51'):
-            secrets[n] = ['aensl-51']
+        if a.rpg.attr_net.has_edge(n, 'aensl-50'):
+            secrets[n] = ['aensl-50']
         else:
             secrets[n] = []
     print(a.rpg.affected_attribute_number(secrets))
