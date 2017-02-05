@@ -18,7 +18,7 @@ import networkx as nx
 from ranfig import load_ranfig
 from ran_graph import RanGraph
 from ran_priv import RPGraph
-from ran_inference import InferenceAttack
+from ran_inference import InferenceAttack, infer_performance, rpg_labels, rpg_attr_vector
 
 
 DEFAULT_FILENAME = 'facebook_complete'
@@ -102,17 +102,20 @@ def main():
             secrets[n] = []
     print(a.rpg.affected_attribute_number(secrets))
     epsilon = 0.1
-    delta = 0.01
+    delta = 0.7
+    secret = 'aenslid-538'
     org = InferenceAttack(a.rpg, secrets)
-    clf, result = org.lr_classifier('aenslid-538')
-    print result
+    clf, fsl, result = org.dt_classifier(secret)
+    score = org.score(clf, secret)
+    print(result, score, infer_performance(clf, fsl, rpg_attr_vector(a.rpg, secret, secrets), rpg_labels(a.rpg, secret)))
     t0 = time.time()
     new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
     print(a.rpg.cmp_attr_degree_L1_error(new_ran))
-    result2 = org.evaluate(clf.predict(org.rpg_attr_vector(new_ran, 'aenslid-538')), org.rpg_labels(new_ran, 'aenslid-538'))
-    clf2, result25 = InferenceAttack(new_ran, secrets).lr_classifier('aenslid-538')
-    print result2, result25
+    def1 = InferenceAttack(new_ran, secrets)
+    clf2, fsl2, result25 = def1.dt_classifier(secret)
+    print(result25, def1.score(clf2, secret),
+          infer_performance(clf, fsl, rpg_attr_vector(new_ran, secret, secrets), rpg_labels(new_ran, secret)))
     """
     t0 = time.time()
     a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
@@ -125,10 +128,10 @@ def main():
     new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
     print(a.rpg.cmp_attr_degree_L1_error(new_ran))
-    result3 = org.evaluate(clf.predict(org.rpg_attr_vector(new_ran, 'aenslid-538')),
-                           org.rpg_labels(new_ran, 'aenslid-538'))
-    clf3, result35 = InferenceAttack(new_ran, secrets).lr_classifier('aenslid-538')
-    print result3, result35
+    def2 = InferenceAttack(new_ran, secrets)
+    clf3, fsl3, result35 = def1.dt_classifier(secret)
+    print(result35, def2.score(clf3, secret),
+          infer_performance(clf, fsl, rpg_attr_vector(new_ran, secret, secrets), rpg_labels(new_ran, secret)))
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     # t0 = time.time()
