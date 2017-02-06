@@ -87,7 +87,7 @@ class InferenceAttack:
     def score(self, clf, secret):
         x = self.raw_attr_vector(secret)
         y = self.get_labels(secret)
-        return cross_val_score(clf, x, y, scoring='f1', cv=3)
+        return cross_val_score(clf, x, y, scoring='f1', cv=5)
 
 
     def __init__(self, rpgraph, secrets):
@@ -111,5 +111,5 @@ def rpg_labels(rpg, secret):
 def infer_performance(clf, fsl, t_x, t_y):
     t_x_new = fsl.transform(t_x)
     t_y_new = clf.predict(t_x_new)
-    return precision_score(t_y, t_y_new), recall_score(t_y, t_y_new), f1_score(t_y, t_y_new), \
-           accuracy_score(t_y, t_y_new)
+    return precision_score(t_y, t_y_new), recall_score(t_y, t_y_new), f1_score(t_y, t_y_new) # , \
+           # accuracy_score(t_y, t_y_new)

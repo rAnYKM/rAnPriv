@@ -18,7 +18,6 @@ import networkx as nx
 from ranfig import load_ranfig
 from ran_graph import RanGraph
 from ran_priv import RPGraph
-from ran_inference import InferenceAttack, infer_performance, rpg_labels, rpg_attr_vector
 
 
 DEFAULT_FILENAME = 'facebook_complete'
@@ -85,72 +84,4 @@ class FacebookNetwork:
         # self.ran = self.__to_ran()
         self.rpg = self.__to_rpg()
         logging.debug('[snap_fbcomplete] Init Fin. in %f sec' % (time.time() - t0))
-
-def main():
-    a = FacebookNetwork()
-    # a.attribute_stat()
-    price = dict()
-    rprice = dict()
-    secrets =dict()
-    for i in a.rpg.attr_node:
-        price[i] = 1
-    secret = 'aenslid-538'
-    for n in a.rpg.soc_node:
-        if a.rpg.attr_net.has_edge(n, secret):
-            secrets[n] = [secret]
-        else:
-            secrets[n] = []
-    print(a.rpg.affected_attribute_number(secrets))
-    epsilon = 0.1
-    delta = 0.4
-
-    org = InferenceAttack(a.rpg, secrets)
-    clf, fsl, result = org.dt_classifier(secret)
-    score = org.score(clf, secret)
-    print(result, score, infer_performance(clf, fsl, rpg_attr_vector(a.rpg, secret, secrets), rpg_labels(a.rpg, secret)))
-    t0 = time.time()
-    new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
-    print(time.time() - t0)
-    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
-    def1 = InferenceAttack(new_ran, secrets)
-    clf2, fsl2, result25 = def1.dt_classifier(secret)
-    print(result25, def1.score(clf2, secret),
-          infer_performance(clf, fsl, rpg_attr_vector(new_ran, secret, secrets), rpg_labels(new_ran, secret)))
-    """
-    t0 = time.time()
-    a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
-    print(time.time() - t0)
-    t0 = time.time()
-    a.rpg.entropy_mask(secrets, epsilon, delta)
-    print(time.time() - t0)
-    """
-    t0 = time.time()
-    new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
-    # weight = {n: [a.rpg.get_max_weight(secret, epsilon, delta)] for n in a.ran.soc_net.nodes()}
-    # old_ran = a.ran.s_knapsack_mask(secrets, price, weight, mode='greedy')
-    print(time.time() - t0)
-    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
-    def2 = InferenceAttack(new_ran, secrets)
-    clf3, fsl3, result35 = def1.dt_classifier(secret)
-    print(result35, def2.score(clf3, secret),
-          infer_performance(clf, fsl, rpg_attr_vector(new_ran, secret, secrets), rpg_labels(new_ran, secret)))
-    for i in a.rpg.soc_net.edges():
-        rprice[i] = 1
-    # t0 = time.time()
-    # a.ran.s_knapsack_relation_global(secrets, rprice, epsilon)
-    # print(time.time() - t0)
-    # print('3734' in a.rpg.neighbor_array)
-    '''
-    t0 = time.time()
-    new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
-    print(time.time() - t0)
-    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
-    t0 = time.time()
-    new_ran = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
-    print(time.time() - t0)
-    print(a.rpg.cmp_soc_degree_L1_error(new_ran))
-    '''
-
-if __name__ == '__main__':
-    main()
 
