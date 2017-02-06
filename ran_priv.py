@@ -1,11 +1,11 @@
 # Project Name: rAnPrivGP
 # Author: rAnYKM (Jiayi Chen)
 #
-#          ___          ____       _       __________
-#    _____/   |  ____  / __ \_____(_)   __/ ____/ __ \
-#   / ___/ /| | / __ \/ /_/ / ___/ / | / / / __/ /_/ /
-#  / /  / ___ |/ / / / ____/ /  / /| |/ / /_/ / ____/
-# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/\____/_/
+#          ___          ____       _
+#    _____/   |  ____  / __ \_____(_)   __
+#   / ___/ /| | / __ \/ /_/ / ___/ / | / /
+#  / /  / ___ |/ / / / ____/ /  / /| |/ /
+# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/
 #
 # Script Name: ran_priv.py
 # Date: Jan. 11, 2017
@@ -172,7 +172,7 @@ class RPGraph:
         """
         histogram = np.array(nx.degree_histogram(graph))
         # My histogram calculation
-
+        '''
         degree_list = [graph.degree(node) for node in graph.nodes()]
         hist = []
         ctr = Counter(degree_list)
@@ -182,7 +182,7 @@ class RPGraph:
             else:
                 hist.append(0)
         histogram = np.array(hist)
-
+        '''
         return histogram / histogram.sum()
 
     def cmp_soc_degree_L1_error(self, other_rpg):
@@ -269,7 +269,12 @@ class RPGraph:
         """
         # Prior probability of secret
         prior = len(self.attr_net.neighbors(secret)) / len(self.soc_node)
+        # logging.debug('[ran_priv] threshold = %f, (e = %f, d = %f)' %
+        #               (np.exp(epsilon) * prior + delta, epsilon, delta))
         return np.exp(epsilon) * prior + delta
+
+    def get_max_weight(self, secret, epsilon, delta):
+        return self.__get_max_weight(secret, epsilon, delta)
 
     def __get_max_weight_dkp(self, secret, epsilon, delta):
         """

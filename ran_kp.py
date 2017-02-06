@@ -1,11 +1,11 @@
 # Project Name: rAnPrivGP
 # Author: rAnYKM (Jiayi Chen)
 #
-#          ___          ____       _       __________
-#    _____/   |  ____  / __ \_____(_)   __/ ____/ __ \
-#   / ___/ /| | / __ \/ /_/ / ___/ / | / / / __/ /_/ /
-#  / /  / ___ |/ / / / ____/ /  / /| |/ / /_/ / ____/
-# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/\____/_/
+#          ___          ____       _
+#    _____/   |  ____  / __ \_____(_)   __
+#   / ___/ /| | / __ \/ /_/ / ___/ / | / /
+#  / /  / ___ |/ / / / ____/ /  / /| |/ /
+# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/
 #
 # Script Name: ran_kp.py
 # Date: Jun. 29, 2016
@@ -323,6 +323,7 @@ class SetKnapsack:
                 c_set &= self.items[choose][2]
                 best_value += self.items[choose][1]
             li.pop(li.index(choose))
+
         return best_value, res
 
     def dual_greedy_solver(self):
@@ -520,11 +521,8 @@ class VecKnapsack:
                     return True
             return False
 
-        def reduce_weights(w, max_w):
-            return [max_w[i] - w[i] for i in range(len(w))]
-
         def calculate_ratio(p, w, c):
-            return (p + 1) / float(sum([(j + 1) / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
+            return (p + 1) / float(sum([j / float(c[i] + 1) + 1 for i, j in enumerate(w)]))
 
         def find_max(l, cs):
             max_pw = -1
@@ -540,7 +538,7 @@ class VecKnapsack:
                     g_weights = weights
             return sel, g_weights
 
-        li = range(len(self.items))
+        li = range(len(self.sorted_items))
         c_array = np.ones(self.size)
         res = []
         best_value = 0
@@ -550,8 +548,12 @@ class VecKnapsack:
                 res.append(self.items[choose][0])
                 c_array = c_array * self.items[choose][2]
                 best_value += self.items[choose][1]
+            # else:
+            #     break
             li.pop(li.index(choose))
+            # print(res, best_value, new_weight, self.max_weights)
         return best_value, res
+
 
 class RelKnapsack:
     def __init__(self, soc_net, t_ar, n_ar, items, secrets, max_weights):

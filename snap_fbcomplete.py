@@ -1,11 +1,11 @@
 # Project Name: rAnPrivGP
 # Author: rAnYKM (Jiayi Chen)
 #
-#          ___          ____       _       __________
-#    _____/   |  ____  / __ \_____(_)   __/ ____/ __ \
-#   / ___/ /| | / __ \/ /_/ / ___/ / | / / / __/ /_/ /
-#  / /  / ___ |/ / / / ____/ /  / /| |/ / /_/ / ____/
-# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/\____/_/
+#          ___          ____       _
+#    _____/   |  ____  / __ \_____(_)   __
+#   / ___/ /| | / __ \/ /_/ / ___/ / | / /
+#  / /  / ___ |/ / / / ____/ /  / /| |/ /
+# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/
 #
 # Script Name: snap_fbcomplete.py
 # Date: Dec. 21, 2016
@@ -31,7 +31,7 @@ class FacebookNetwork:
         for index, row in self.feat_table.iterrows():
             attr_name = row['attr']
             new_df_list.append({'attr': attr_name,
-                                'count': len(self.ran.soc_attr_net.neighbors(attr_name))})
+                                'count': len(self.rpg.attr_net.neighbors(attr_name))})
         attr_stat = pd.DataFrame(new_df_list)
         print(attr_stat.sort_values('count', ascending=False))
 
@@ -92,18 +92,18 @@ def main():
     price = dict()
     rprice = dict()
     secrets =dict()
-    epsilon = dict()
     for i in a.rpg.attr_node:
         price[i] = 1
+    secret = 'aenslid-538'
     for n in a.rpg.soc_node:
-        if a.rpg.attr_net.has_edge(n, 'aenslid-538'):
-            secrets[n] = ['aenslid-538']
+        if a.rpg.attr_net.has_edge(n, secret):
+            secrets[n] = [secret]
         else:
             secrets[n] = []
     print(a.rpg.affected_attribute_number(secrets))
     epsilon = 0.1
-    delta = 0.7
-    secret = 'aenslid-538'
+    delta = 0.4
+
     org = InferenceAttack(a.rpg, secrets)
     clf, fsl, result = org.dt_classifier(secret)
     score = org.score(clf, secret)
@@ -126,6 +126,8 @@ def main():
     """
     t0 = time.time()
     new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
+    # weight = {n: [a.rpg.get_max_weight(secret, epsilon, delta)] for n in a.ran.soc_net.nodes()}
+    # old_ran = a.ran.s_knapsack_mask(secrets, price, weight, mode='greedy')
     print(time.time() - t0)
     print(a.rpg.cmp_attr_degree_L1_error(new_ran))
     def2 = InferenceAttack(new_ran, secrets)

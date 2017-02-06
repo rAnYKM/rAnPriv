@@ -346,10 +346,10 @@ def line_relation():
 
 
 if __name__ == '__main__':
-    # line_line()
+    line_line()
     # shell_bar()
     # experiment_attack('1684', ['aensl-538'])
     # experiment_relation('0', ['aensl-50'], 1, 1, 0.5)
-    line_relation()
+    # line_relation()
 
 

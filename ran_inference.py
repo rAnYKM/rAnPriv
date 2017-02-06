@@ -16,7 +16,7 @@ from sklearn.naive_bayes import BernoulliNB
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 from sklearn.model_selection import cross_val_score
 from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
 
@@ -37,7 +37,7 @@ class InferenceAttack:
     def feature_sel(self, secret):
         x = self.raw_attr_vector(secret)
         y = self.get_labels(secret)
-        f_selector = SelectKBest(chi2, k=100)
+        f_selector = SelectKBest(chi2, k=80)
         f_selector.fit(x, y)
         return f_selector
 
@@ -111,4 +111,5 @@ def rpg_labels(rpg, secret):
 def infer_performance(clf, fsl, t_x, t_y):
     t_x_new = fsl.transform(t_x)
     t_y_new = clf.predict(t_x_new)
-    return precision_score(t_y, t_y_new), recall_score(t_y, t_y_new), f1_score(t_y, t_y_new)
+    return precision_score(t_y, t_y_new), recall_score(t_y, t_y_new), f1_score(t_y, t_y_new), \
+           accuracy_score(t_y, t_y_new)

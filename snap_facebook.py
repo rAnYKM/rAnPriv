@@ -1,11 +1,11 @@
 # Project Name: rAnPrivGP
 # Author: rAnYKM (Jiayi Chen)
 #
-#          ___          ____       _       __________
-#    _____/   |  ____  / __ \_____(_)   __/ ____/ __ \
-#   / ___/ /| | / __ \/ /_/ / ___/ / | / / / __/ /_/ /
-#  / /  / ___ |/ / / / ____/ /  / /| |/ / /_/ / ____/
-# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/\____/_/
+#          ___          ____       _
+#    _____/   |  ____  / __ \_____(_)   __
+#   / ___/ /| | / __ \/ /_/ / ___/ / | / /
+#  / /  / ___ |/ / / / ____/ /  / /| |/ /
+# /_/  /_/  |_/_/ /_/_/   /_/  /_/ |___/
 #
 # Script Name: snap_facebook.py
 # Date: May. 18, 2016
@@ -317,7 +317,7 @@ def main():
     print(a.rpg.affected_attribute_number(secrets))
     a.attribute_stat()
     epsilon = 0.1
-    delta = 0.1
+    delta = 0.4
     t0 = time.time()
     new_ran = a.rpg.d_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     print(time.time() - t0)
