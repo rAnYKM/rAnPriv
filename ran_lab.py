@@ -106,4 +106,4 @@ def single_attribute_test(secret, epsilon, delta):
     '''
 
 if __name__ == '__main__':
-    single_attribute_test('aenslid-52', 0.1, 0.5)
+    single_attribute_test('aenslid-538', 0.1, 0)
