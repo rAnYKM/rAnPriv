@@ -13,6 +13,7 @@
 import time
 import logging
 import numpy as np
+import pandas as pd
 from ran_priv import RPGraph
 from snap_fbcomplete import FacebookNetwork
 from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels
@@ -26,6 +27,8 @@ def single_attribute_test(secret, epsilon, delta):
     price = dict()
     rprice = dict()
     secrets = dict()
+    exp1 = dict()
+    exp2 = dict()
     for i in a.rpg.attr_node:
         price[i] = 1
     for n in a.rpg.soc_node:
@@ -47,7 +50,8 @@ def single_attribute_test(secret, epsilon, delta):
     ## 2 kinds of test methods:
     ## 1. (O)All, (A)All (all data for train, all data for test)
     ## 2. (A)k-Fold (k-1 for train, 1 for test)
-
+    exp1['origin'] = np.average(score)
+    exp2['origin'] = full_att[2]
     logging.info('[ran_lab] Origin %d-fold (f1 score) - average=%f'
                   % (len(score), np.average(score)))
     logging.info('[ran_lab] Origin full graph - precision=%f, recall=%f, f1-score=%f'
@@ -74,11 +78,13 @@ def single_attribute_test(secret, epsilon, delta):
     logging.info('[ran_lab] Origin full graph - precision=%f, recall=%f, f1-score=%f'
                   % (full_att[0], full_att[1], full_att[2]))
 
+    exp1['entropy'] = np.average(score)
+    exp2['entropy'] = full_att[2]
     new_ran = a.rpg.v_knapsack_mask(secrets, price, epsilon, delta, mode='greedy')
     # weight = {n: [a.rpg.get_max_weight(secret, epsilon, delta)] for n in a.ran.soc_net.nodes()}
     # old_ran = a.ran.s_knapsack_mask(secrets, price, weight, mode='greedy')
-    print(time.time() - t0)
-    print(a.rpg.cmp_attr_degree_L1_error(new_ran))
+    # print(time.time() - t0)
+    # print(a.rpg.cmp_attr_degree_L1_error(new_ran))
     def2 = InferenceAttack(new_ran, secrets)
     clf3, fsl3, result35 = def1.dt_classifier(secret)
     score = def2.score(clf3, secret)
@@ -87,7 +93,8 @@ def single_attribute_test(secret, epsilon, delta):
                   % (len(score), np.average(score)))
     logging.info('[ran_lab] Origin full graph - precision=%f, recall=%f, f1-score=%f'
                   % (full_att[0], full_att[1], full_att[2]))
-
+    exp1['vkp'] = np.average(score)
+    exp2['vkp'] = full_att[2]
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     # t0 = time.time()
@@ -104,6 +111,23 @@ def single_attribute_test(secret, epsilon, delta):
     print(time.time() - t0)
     print(a.rpg.cmp_soc_degree_L1_error(new_ran))
     '''
+    return exp1, exp2
+
+
+def single_attribute_batch(secret, epsilon, delta_range):
+    exp1 = list()
+    exp2 = list()
+    for delta in delta_range:
+        e1, e2 = single_attribute_test(secret, epsilon, delta)
+        exp1.append(e1)
+        exp2.append(e2)
+    df1 = pd.DataFrame(exp1, index=delta_range)
+    df2 = pd.DataFrame(exp2, index=delta_range)
+    df1.to_csv('out/%s-exp1.csv' % secret)
+    df2.to_csv('out/%s-exp2.csv' % secret)
+
 
 if __name__ == '__main__':
-    single_attribute_test('aenslid-538', 0.1, 0)
+    # single_attribute_test('aenslid-538', 0.1, 0)
+    single_attribute_batch('aenslid-52', 0.1, np.arange(0, 0.5, 0.05))
+

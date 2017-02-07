@@ -545,10 +545,10 @@ class RPGraph:
         t0 = time.time()
         self.attr_array = self.__get_attr_array()
         self.neighbor_array = self.__get_neighbor_array()
-        logging.debug('[RPGraph] Support array time (%d, %d) : %f s' % (len(self.attr_array.keys()),
-                                                                        len(self.neighbor_array.keys()),
-                                                                        time.time() - t0))
-        logging.debug('[RPGraph] RPGraph built: %d (%d) actors, %d (%d) edges, %d attributes and %d links'
+        # logging.debug('[RPGraph] Support array time (%d, %d) : %f s' % (len(self.attr_array.keys()),
+        #                                                                 len(self.neighbor_array.keys()),
+        #                                                                time.time() - t0))
+        logging.info('[RPGraph] RPGraph built: %d (%d) actors, %d (%d) edges, %d attributes and %d links'
                       % (self.soc_net.number_of_nodes(), len(self.soc_node),
                          self.soc_net.number_of_edges(), len(self.soc_edge),
                          self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
