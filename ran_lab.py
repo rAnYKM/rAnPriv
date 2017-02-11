@@ -15,7 +15,7 @@ import logging
 import numpy as np
 import pandas as pd
 from snap_fbcomplete import FacebookNetwork
-from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels
+from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels, RelationAttack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -221,4 +221,17 @@ def single_attribute_batch_ver2(secret, epsilon, delta_range):
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
-    single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
+    # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
+    a = FacebookNetwork()
+    price = dict()
+    secrets = dict()
+    secret = 'aenslid-52'
+    for i in a.rpg.attr_node:
+        price[i] = 1
+    for n in a.rpg.soc_node:
+        if a.rpg.attr_net.has_edge(n, secret):
+            secrets[n] = [secret]
+        else:
+            secrets[n] = []
+    ra = RelationAttack(a.rpg, secrets)
+    ra.generate_data_set(secret)
