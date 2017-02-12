@@ -235,3 +235,5 @@ if __name__ == '__main__':
             secrets[n] = []
     ra = RelationAttack(a.rpg, secrets)
     ra.generate_data_set(secret)
+    result = ra.cross_validation(5)
+    print ra.result_formatter(result, secret)

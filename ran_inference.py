@@ -177,6 +177,53 @@ class RelationAttack:
         with open(os.path.join(self.path, self.filename + '.arff'), 'w') as fp:
             fp.write(schema)
 
+    def execute(self, script):
+        # TODO: In Python3.5 and later versions, subprocess is better
+        print('Run script: java -jar %s %s' % (self.netkit, script))
+        os.system('java -jar %s %s' % (self.netkit, script))
+
+    def cross_validation(self, k=5):
+        self.execute('-runs %d -output %s %s.arff' % (k,
+                                                      os.path.join(self.path, self.filename),
+                                                      os.path.join(self.path, self.filename)))
+        with open(os.path.join(self.path, self.filename + '.predict'), 'rb') as fp:
+            lines = fp.readlines()
+            count = 0
+            result = []
+            tmp_dict = {}
+            for line in lines:
+                line = line.strip()
+                if line == '#' + str(count):
+                    if count != 0:
+                    # Do something here
+                        result.append(tmp_dict)
+                        tmp_dict = {}
+                    count = count + 1
+                    continue
+                else:
+                    elem = line.split(' ')
+                    tmp_dict[elem[0]] = int(elem[1].split(':')[0] == 'yes')
+            result.append(tmp_dict)
+            return result
+
+    def result_formatter(self, result, secret):
+        new_result = []
+        for fold in result:
+            y = []
+            new_y = []
+            for node, res in fold.items():
+                ans = int(self.rpg.attr_net.has_edge(node, secret))
+                y.append(ans)
+                new_y.append(res)
+            new_result.append({'precision': precision_score(y, new_y),
+                               'recall': recall_score(y, new_y),
+                               'f1': f1_score(y, new_y)})
+        return new_result
+
+
+
+
+
     def __init__(self, rpg, secrets, filename='webkit'):
         # Schema Template
         self.rpg = rpg
@@ -184,3 +231,4 @@ class RelationAttack:
         self.filename = filename
         tmp_dict = load_ranfig()
         self.path = tmp_dict['OUT']
+        self.netkit = tmp_dict['NETKIT']
