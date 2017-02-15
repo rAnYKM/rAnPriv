@@ -145,7 +145,7 @@ class AttackSimulator:
         self.fsl = org_settings['feat_selector']
         self.score = org_settings['score']
 
-    def __init__(self, rpg, secrets, secret, epsilon=0.1, delta=0):
+    def __init__(self, rpg, secrets, secret, epsilon=0.1, delta=0.0):
         self.rpg = rpg
         self.secrets = secrets
         self.secret = secret
@@ -219,13 +219,36 @@ def single_attribute_batch_ver2(secret, epsilon, delta_range):
     df2.to_csv('out/%s-res2.csv' % secret)
 
 
-if __name__ == '__main__':
-    # single_attribute_test('aenslid-538', 0.1, 0)
-    # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
+class RelationAttackSimulator:
+    def attack(self, sample_rate):
+        result = self.attacker.cross_validation(10, sample_rate)
+        return self.attacker.result_formatter(result, self.secret)
+
+    def config(self, secret, epsilon, delta):
+        self.secret = secret
+        self.epsilon = epsilon
+        self.delta = delta
+        self.attacker.generate_data_set(secret)
+
+    def __init__(self, rpg, secrets, secret, filename, epsilon=0.1, delta=0.0):
+        self.rpg = rpg
+        self.secrets = secrets
+        self.secret = secret
+        self.epsilon = epsilon
+        self.delta = delta
+        self.filename = filename
+        self.attacker = RelationAttack(self.rpg, self.secrets, self.filename)
+        self.attacker.generate_data_set(secret)
+
+
+def tmp_relation_test():
     a = FacebookNetwork()
     price = dict()
+    rprice = dict()
     secrets = dict()
     secret = 'aenslid-52'
+    epsilon = 0.1
+    delta = 0.01
     for i in a.rpg.attr_node:
         price[i] = 1
     for n in a.rpg.soc_node:
@@ -233,7 +256,17 @@ if __name__ == '__main__':
             secrets[n] = [secret]
         else:
             secrets[n] = []
-    ra = RelationAttack(a.rpg, secrets)
-    ra.generate_data_set(secret)
-    result = ra.cross_validation(5)
-    print ra.result_formatter(result, secret)
+    simulator = RelationAttackSimulator(a.rpg, secrets, secret, 'origin', 0.1, 0.01)
+    print(simulator.attack(0.6))
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
+    simulator = RelationAttackSimulator(new_ran, secrets, secret, 'dkp', 0.1, 0.01)
+    print(simulator.attack(0.6))
+
+
+if __name__ == '__main__':
+    # single_attribute_test('aenslid-538', 0.1, 0)
+    # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
+    tmp_relation_test()
+
