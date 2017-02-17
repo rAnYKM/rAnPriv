@@ -477,7 +477,7 @@ class RPGraph:
             else:
                 node_index[node] = -1  # NO SECRET NODE
             for sec in secret:
-                new_eps.append(self.__get_max_weight(sec, epsilon, delta))
+                new_eps.append(self.__get_max_weight_dkp(sec, epsilon, delta))
                 current += 1
         items = list()
         for edge in self.soc_net.edges():

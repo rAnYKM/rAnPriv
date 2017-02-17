@@ -222,7 +222,9 @@ def single_attribute_batch_ver2(secret, epsilon, delta_range):
 class RelationAttackSimulator:
     def attack(self, sample_rate):
         result = self.attacker.cross_validation(10, sample_rate)
-        return self.attacker.result_formatter(result, self.secret)
+        formatted = self.attacker.result_formatter(result, self.secret)
+        f1_list = [item['f1'] for item in formatted]
+        return np.average(f1_list)
 
     def config(self, secret, epsilon, delta):
         self.secret = secret
@@ -246,9 +248,9 @@ def tmp_relation_test():
     price = dict()
     rprice = dict()
     secrets = dict()
-    secret = 'aenslid-52'
+    secret = 'aenslid-50'
     epsilon = 0.1
-    delta = 0.01
+    delta = 0.00001
     for i in a.rpg.attr_node:
         price[i] = 1
     for n in a.rpg.soc_node:
@@ -256,17 +258,16 @@ def tmp_relation_test():
             secrets[n] = [secret]
         else:
             secrets[n] = []
-    simulator = RelationAttackSimulator(a.rpg, secrets, secret, 'origin', 0.1, 0.01)
-    print(simulator.attack(0.6))
+    simulator = RelationAttackSimulator(a.rpg, secrets, secret, 'origin', epsilon, delta)
+    print(simulator.attack(0.8))
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     new_ran = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
-    simulator = RelationAttackSimulator(new_ran, secrets, secret, 'dkp', 0.1, 0.01)
-    print(simulator.attack(0.6))
+    simulator = RelationAttackSimulator(new_ran, secrets, secret, 'dkp', epsilon, delta)
+    print(simulator.attack(0.8))
 
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
     # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
     tmp_relation_test()
-
