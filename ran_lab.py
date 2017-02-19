@@ -157,6 +157,30 @@ class AttackSimulator:
         self.score = org_settings['score']
 
 
+class AttributeExperiment:
+    """
+    Attribute disclosure experiment
+    INPUT: original RPGraph, secret_settings
+    Format:
+    secret_settings(dict): {secret name (string) : sampling rate (float)}
+    """
+    def resampling(self):
+        secrets = {}
+        for secret, rate in self.secret_settings.items():
+            # Select all nodes with the secret
+            nodes = np.array([node for node in self.rpg.attr_net.neighbors(secret)])
+            # rAnDOM
+            indices = np.random.permutation(nodes.shape[0])
+            # pool_a: nodes thinking secret, pool_b: nodes not thinking secret
+            size = nodes.shape[0] * rate
+            pool_a_idx, pool_b_idx = indices[:size], indices[size:]
+            pool_a, pool_b = nodes[pool_a_idx,:], nodes[pool_b_idx,:]
+
+    def __init__(self, origin_rpg, secret_settings):
+        self.rpg = origin_rpg
+        self.secret_settings = secret_settings
+
+
 def single_attack_test_ver2(simulator, price, secret, epsilon, delta):
     simulator.config(secret, epsilon, delta)
     # Entropy Masking
