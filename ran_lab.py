@@ -62,7 +62,7 @@ def single_attribute_test(secret, epsilon, delta):
     """
     # a.rpg.naive_bayes_mask(secrets, epsilon, delta, 0.1)
 
-    new_ran = a.rpg.entropy_mask(secrets, epsilon, delta)
+    new_ran = a.rpg.entropy_mask(secrets, price, epsilon, delta)
     def1 = InferenceAttack(new_ran, secrets)
     clf2, fsl2, result25 = def1.dt_classifier(secret)
     score = def1.score(clf2, secret)
@@ -165,16 +165,75 @@ class AttributeExperiment:
     secret_settings(dict): {secret name (string) : sampling rate (float)}
     """
     def resampling(self):
-        secrets = {}
+        secrets = {node: [] for node in self.rpg.soc_node}
+        exposed = {node: [] for node in self.rpg.soc_node}
         for secret, rate in self.secret_settings.items():
             # Select all nodes with the secret
             nodes = np.array([node for node in self.rpg.attr_net.neighbors(secret)])
             # rAnDOM
             indices = np.random.permutation(nodes.shape[0])
             # pool_a: nodes thinking secret, pool_b: nodes not thinking secret
-            size = nodes.shape[0] * rate
+            size = int(nodes.shape[0] * rate)
             pool_a_idx, pool_b_idx = indices[:size], indices[size:]
-            pool_a, pool_b = nodes[pool_a_idx,:], nodes[pool_b_idx,:]
+            # pool_a, pool_b = nodes[pool_a_idx,:], nodes[pool_b_idx,:]
+            for idx in pool_a_idx:
+                secrets[nodes[idx]] += [secret]
+            for idx in pool_b_idx:
+                exposed[nodes[idx]] += [secret]
+            logging.info('[ran_lab] resampling: %s - s:%d e:%d' % (secret, len(pool_a_idx), len(pool_b_idx)))
+        return secrets, exposed
+
+    def auto_attr_price(self, mode='equal'):
+        values = dict()
+        if mode == 'equal':
+            for attr in self.rpg.attr_node:
+                values[attr] = 1
+        elif mode == 'unique':
+            for attr in self.rpg.attr_node:
+                values[attr] = 1 / float(len(self.rpg.attr_net.neighbors(attr)))
+        elif mode == 'common':
+            for node in self.rpg.soc_node:
+                attrs = [attr for attr in self.rpg.attr_net.neighbors_iter(node)]
+                values[node] = dict()
+                set_n = set(self.rpg.soc_net.neighbors(node))
+                for attr in attrs:
+                    set_a = set(self.rpg.attr_net.neighbors(attr))
+                    values[node][attr] = (len(set_n & set_a) + 1) / float(len(set_n) + 1)
+        return values
+
+    def attr_utility(self, rpg, mode='equal', p_mode='single'):
+        price = self.auto_attr_price(mode)
+        if p_mode == 'single':
+            total = sum([sum([price[attr] for attr in self.rpg.attr_net.neighbors(node)])
+                         for node in self.rpg.soc_node])
+            score = sum([sum([price[attr] for attr in rpg.attr_net.neighbors(node)])
+                         for node in rpg.soc_node])
+        else:
+            total = sum([sum([price[node][attr] for attr in self.rpg.attr_net.neighbors(node)])
+                         for node in self.rpg.soc_node])
+            score = sum([sum([price[node][attr] for attr in rpg.attr_net.neighbors(node)])
+                         for node in rpg.soc_node])
+        return score / total
+
+    def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
+        secrets, _ = self.resampling()
+        price = self.auto_attr_price()
+        utility_table = []
+        for delta in delta_range:
+            ran_random = self.rpg.random_mask(secrets, epsilon, delta)
+            ran_nb = self.rpg.naive_bayes_mask(secrets, epsilon, delta)
+            ran_ig = self.rpg.entropy_mask(secrets, price, epsilon, delta)
+            ran_vkp = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta)
+            # Utility Calculate
+            all_scores = {
+                'Random': self.attr_utility(ran_random, utility_name),
+                'NaiveBayes': self.attr_utility(ran_nb, utility_name),
+                'InfoGain': self.attr_utility(ran_ig, utility_name),
+                'V-KP': self.attr_utility(ran_vkp, utility_name)
+            }
+            utility_table.append(all_scores)
+        return pd.DataFrame(utility_table, index=delta_range)
+
 
     def __init__(self, origin_rpg, secret_settings):
         self.rpg = origin_rpg
@@ -184,7 +243,7 @@ class AttributeExperiment:
 def single_attack_test_ver2(simulator, price, secret, epsilon, delta):
     simulator.config(secret, epsilon, delta)
     # Entropy Masking
-    new_ran = simulator.rpg.entropy_mask(simulator.secrets, epsilon, delta)
+    new_ran = simulator.rpg.entropy_mask(simulator.secrets, price, epsilon, delta)
     result = simulator.rpg_attack(new_ran)
     etp_res = {'precision': result['score'][0],
                'recall': result['score'][1],
@@ -294,4 +353,7 @@ def tmp_relation_test():
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
     # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
-    tmp_relation_test()
+    # tmp_relation_test()
+    a = FacebookNetwork()
+    expr = AttributeExperiment(a.rpg, {'aenslid-538': 0.8, 'aenslid-52': 0.8})
+    print(expr.delta_experiment(0.1, np.arange(0, 0.4, 0.1)))
