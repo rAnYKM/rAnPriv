@@ -18,6 +18,7 @@ from snap_fbcomplete import FacebookNetwork
 from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels, RelationAttack
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+RESULT_METRICS = ['precision', 'recall', 'f1']
 
 
 def single_attribute_test(secret, epsilon, delta):
@@ -136,6 +137,17 @@ class AttackSimulator:
         return {'score': full_att,
                 'utility': 1 - utility}
 
+    def formatted_rpg_attack(self, rpg):
+        full_att = infer_performance(self.clf,
+                                     self.fsl,
+                                     rpg_attr_vector(rpg, self.secret, self.secrets),
+                                     rpg_labels(rpg, self.secret))
+        logging.info('[ran_lab] Full Graph Attack - precision=%f, recall=%f, f1-score=%f'
+                     % (full_att[0], full_att[1], full_att[2]))
+        return {'precision': full_att[0],
+                'recall': full_att[1],
+                'f1': full_att[2]}
+
     def config(self, secret, epsilon, delta):
         self.secret = secret
         self.epsilon = epsilon
@@ -219,6 +231,10 @@ class AttributeExperiment:
         secrets, _ = self.resampling()
         price = self.auto_attr_price()
         utility_table = []
+        secret_list = [s for s in self.secret_settings.keys()]
+        result_table = {secret: {metric: [] for metric in RESULT_METRICS}
+                        for secret in secret_list}
+        simulator = AttackSimulator(self.rpg, secrets, secret_list[0])
         for delta in delta_range:
             ran_random = self.rpg.random_mask(secrets, epsilon, delta)
             ran_nb = self.rpg.naive_bayes_mask(secrets, epsilon, delta)
@@ -231,9 +247,28 @@ class AttributeExperiment:
                 'InfoGain': self.attr_utility(ran_ig, utility_name),
                 'V-KP': self.attr_utility(ran_vkp, utility_name)
             }
+            for secret in secret_list:
+                simulator.config(secret, epsilon, delta)
+                result_random = simulator.formatted_rpg_attack(ran_random)
+                result_nb = simulator.formatted_rpg_attack(ran_nb)
+                result_ig = simulator.formatted_rpg_attack(ran_ig)
+                result_vkp = simulator.formatted_rpg_attack(ran_vkp)
+                for metric in RESULT_METRICS:
+                    metric_row = {
+                        'Random': result_random[metric],
+                        'NaiveBayes': result_nb[metric],
+                        'InfoGain': result_ig[metric],
+                        'V-KP': result_vkp[metric]
+                    }
+                    result_table[secret][metric].append(metric_row)
             utility_table.append(all_scores)
-        return pd.DataFrame(utility_table, index=delta_range)
+        return pd.DataFrame(utility_table, index=delta_range), result_table
 
+    def show_result_table(self, result_table, delta_range):
+        for secret, table in result_table.items():
+            for metric, content in table.items():
+                print('========Secret: %s, Metric: %s========' % (secret, metric))
+                print(pd.DataFrame(content, index=delta_range))
 
     def __init__(self, origin_rpg, secret_settings):
         self.rpg = origin_rpg
@@ -356,4 +391,6 @@ if __name__ == '__main__':
     # tmp_relation_test()
     a = FacebookNetwork()
     expr = AttributeExperiment(a.rpg, {'aenslid-538': 0.8, 'aenslid-52': 0.8})
-    print(expr.delta_experiment(0.1, np.arange(0, 0.4, 0.1)))
+    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.4, 0.1))
+    print(utility)
+    expr.show_result_table(result_table, np.arange(0, 0.4, 0.1))
