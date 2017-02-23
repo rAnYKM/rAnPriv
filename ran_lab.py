@@ -385,12 +385,21 @@ def tmp_relation_test():
     print(simulator.attack(0.8))
 
 
+def attr_statistics(rpg):
+    stat = [{'name': attr, 'number': len(rpg.attr_net.neighbors(attr))} for attr in rpg.attr_node]
+    stat_pd = pd.DataFrame(stat)
+    stat_pd = stat_pd.sort_values(by='number', ascending=False)
+    print(stat_pd.head(50))
+
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
     # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
     # tmp_relation_test()
+    """
     a = FacebookNetwork()
-    expr = AttributeExperiment(a.rpg, {'aenslid-538': 0.8, 'aenslid-52': 0.8})
+    expr = AttributeExperiment(a.rpg, {'aenslid-538': 1.0, 'aenslid-52': 1.0})
     utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.4, 0.1))
     print(utility)
     expr.show_result_table(result_table, np.arange(0, 0.4, 0.1))
+    """
+    attr_statistics(FacebookNetwork().rpg)
