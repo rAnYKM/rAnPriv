@@ -1,0 +1,18 @@
+For the experiment, we use five different attributes from different categories
+
+Standards:
+1. Sample Size > 5%
+2. Different Categories
+
+Attribute Disclosure Experiment:
+1. attacker has a complete attack graph as the original graph
+2. attacker trains the inferences model totally from the attack graph
+3. all nodes with the targeted attribute will regard it as the secret
+
+Selected Features:
+aenslid-538 School 631
+aby-5 372
+ahnid-84 365
+alnid-617 162
+aencnid-34 368
+

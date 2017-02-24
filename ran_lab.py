@@ -11,6 +11,7 @@
 # Date: Feb. 5, 2017
 
 from __future__ import division
+import os
 import logging
 import numpy as np
 import pandas as pd
@@ -270,12 +271,19 @@ class AttributeExperiment:
                 print('========Secret: %s, Metric: %s========' % (secret, metric))
                 print(pd.DataFrame(content, index=delta_range))
 
+    def save_result_table(self, result_table, delta_range, output="out"):
+        for secret, table in result_table.items():
+            for metric, content in table.items():
+                pd_table = pd.DataFrame(content, index=delta_range)
+                pd_table.to_csv(os.path.join(output, '%s-(%s).csv' % (secret, metric)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
     def __init__(self, origin_rpg, secret_settings):
         self.rpg = origin_rpg
         self.secret_settings = secret_settings
 
 
-def single_attack_test_ver2(simulator, price, secret, epsilon, delta):
+def single_attack_test_ver2(simulator, price, secret, epsilon, deltai):
     simulator.config(secret, epsilon, delta)
     # Entropy Masking
     new_ran = simulator.rpg.entropy_mask(simulator.secrets, price, epsilon, delta)
@@ -334,7 +342,7 @@ def single_attribute_batch_ver2(secret, epsilon, delta_range):
     df1 = pd.DataFrame(res1, index=delta_range)
     df2 = pd.DataFrame(res2, index=delta_range)
     df1.to_csv('out/%s-res1.csv' % secret)
-    df2.to_csv('out/%s-res2.csv' % secret)
+    df2.to_csv('out/%s-res2.csv' % secret) 
 
 
 class RelationAttackSimulator:
@@ -384,12 +392,29 @@ def tmp_relation_test():
     simulator = RelationAttackSimulator(new_ran, secrets, secret, 'dkp', epsilon, delta)
     print(simulator.attack(0.8))
 
-
-def attr_statistics(rpg):
+ 
+def attr_statistics(rpg) :
     stat = [{'name': attr, 'number': len(rpg.attr_net.neighbors(attr))} for attr in rpg.attr_node]
     stat_pd = pd.DataFrame(stat)
     stat_pd = stat_pd.sort_values(by='number', ascending=False)
     print(stat_pd.head(50))
+
+
+def attr_lab_0223():
+    a = FacebookNetwork()
+    expr_settings = {
+        'aenslid-538': 1.0,
+        'aby-5': 1.0,
+        'ahnid-84': 1.0,
+        'alnid-617': 1.0,
+        'aencnid-14': 1.0
+    }
+    output_dir = "/Users/jiayichen/res223/"
+    expr = AttributeExperiment(a.rpg, expr_settings)
+    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.5, 0.05))
+    utility.to_csv(os.path.join(output_dir, 'utility.csv'))
+    expr.save_result_table(result_table, np.arange(0, 0.5, 0.05), output_dir)
+
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
@@ -402,4 +427,5 @@ if __name__ == '__main__':
     print(utility)
     expr.show_result_table(result_table, np.arange(0, 0.4, 0.1))
     """
-    attr_statistics(FacebookNetwork().rpg)
+    # attr_statistics(FacebookNetwork().rpg)
+    attr_lab_0223()
