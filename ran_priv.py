@@ -441,6 +441,91 @@ class RPGraph:
         logging.debug("Entropy Masking: %d/%d attribute edges removed" % (attr_conceal, len(self.attr_edge)))
         return new_rpg
 
+    def entropy_relation(self, secrets, price, epsilon, delta, p_mode='single'):
+        """ knapsack-like solver
+        :param secrets: {soc_node: [attr_node]}
+        :param price: dict
+        :param epsilon: float
+        :param delta: float
+        :param p_mode: string
+        :return: RPGraph
+        """
+
+        # TODO: Implementation
+        def exceed_weights(w, max_w):
+            for wi in range(len(w)):
+                if w[wi] > max_w[wi]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        # Serialize secrets and epsilon
+        node_index = dict()
+        new_eps = dict()
+        current = 0
+        for node, secret in secrets.items():
+            if secret:
+                node_index[node] = current
+            else:
+                node_index[node] = -1  # NO SECRET NODE
+            for sec in secret:
+                # new_eps.append(self.__get_max_weight(sec, epsilon, delta))
+                current += 1
+            new_eps[node] = [self.__get_max_weight(sec, epsilon, delta) for sec in secret]
+        items = list()
+        for edge in self.soc_net.edges():
+            u = edge[0]
+            v = edge[1]
+            if len(secrets[u]) == 0 and len(secrets[v]) == 0:
+                soc_edge.append(edge)
+                continue
+            else:
+                # Calculate weight
+                weight = [0] * len(new_eps)
+                for index, sec in enumerate(secrets[u]):
+                    weight[node_index[u] + index] = self.mutual_information(v, sec, False)
+                for index, sec in enumerate(secrets[v]):
+                    weight[node_index[v] + index] = self.mutual_information(u, sec, False)
+                item = (edge, price[edge], weight)
+                items.append(item)
+        # while exceed_weights(weights, mask_ratio) and fn:
+            # index, value = max(enumerate(sw), key=operator.itemgetter(1))
+            # fn.pop(index)
+            # sw.pop(index)
+            # weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+
+        # Sort items by the efficiency of each item
+        pool = sorted(items, key=lambda tup: sum(tup[2]) / float(tup[1]))
+        # pool_toshow = [sum(tup[2]) / float(tup[1]) for tup in pool if sum(tup[2]) < 0.1]
+        # print(pool_toshow)
+        sel_pool = list()
+        aux_pool = {node: [] for node in soc_node} # a supporting pool to record each node's related edges
+        for item in pool:
+            # each item is an edge
+            u, v = item[0] # two nodes
+            # each iteration, only tell whether it affects these two nodes' constraints
+            max_w_u = new_eps[u]
+            max_w_v = new_eps[v]
+            cur_w_u = [self.prob_secret_on_nodes(secret, aux_pool[u] + [v]) for secret in secrets[u]]
+            cur_w_v = [self.prob_secret_on_nodes(secret, aux_pool[v] + [u]) for secret in secrets[v]]
+            if exceed_weights(cur_w_u, max_w_u) or exceed_weights(cur_w_v, max_w_v):
+                continue
+            else:
+                sel_pool.append(item[0])
+                aux_pool[u].append(v)
+                aux_pool[v].append(u)
+
+        # val, sel = MultiDimensionalKnapsack(items, new_eps).greedy_solver('scale')
+        logging.debug('Entropy Masking: selected rate = %f' % (len(sel_pool)/len(pool)))
+        soc_edge += sel_pool
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("Entropy Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran
+
     def d_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
         """ knapsack-like solver
         :param secrets: {soc_node: [attr_node]}

@@ -16,10 +16,11 @@ import logging
 import numpy as np
 import pandas as pd
 from snap_fbcomplete import FacebookNetwork
-from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels, RelationAttack
+from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels, RelationAttack, self_cross_val
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 RESULT_METRICS = ['precision', 'recall', 'f1']
+ML_ALGS = ['dt', 'lr', 'nb']
 
 
 def single_attribute_test(secret, epsilon, delta):
@@ -111,9 +112,16 @@ def single_attribute_test(secret, epsilon, delta):
 
 
 class AttackSimulator:
-    def self_attack(self):
+    def self_attack(self, classifier='dt'):
         org = InferenceAttack(self.rpg, self.secrets)
-        clf, fsl, result = org.dt_classifier(self.secret)
+        if classifier == 'dt':
+            clf, fsl, result = org.dt_classifier(self.secret)
+        elif classifier == 'nb':
+            clf, fsl, result = org.nb_classifier(self.secret)
+        elif classifier == 'lr':
+            clf, fsl, result = org.lr_classifier(self.secret)
+        else:
+            clf, fsl, result = org.svm_classifier(self.secret)
         # score = org.score(clf, secret)
         full_att = infer_performance(clf,
                                      fsl,
@@ -122,6 +130,7 @@ class AttackSimulator:
         return {'classifier': clf,
                 'feat_selector': fsl,
                 'score': full_att}
+
 
     def rpg_attack(self, rpg):
         full_att = infer_performance(self.clf,
@@ -149,11 +158,20 @@ class AttackSimulator:
                 'recall': full_att[1],
                 'f1': full_att[2]}
 
-    def config(self, secret, epsilon, delta):
+    def formatted_robustness(self, rpg):
+        f1 = self_cross_val(rpg_attr_vector(rpg, self.secret, self.secrets),
+                            rpg_labels(rpg, self.secret),
+                            5)
+        average = np.average(f1)
+        variance = np.var(f1)
+        logging.info('[ran_lab] Robustness(f1) - average=%f, var=%f' % (average, variance))
+        return {'average': str(average) + ',' + str(variance)}
+
+    def config(self, secret, epsilon, delta, classifier='dt'):
         self.secret = secret
         self.epsilon = epsilon
         self.delta = delta
-        org_settings = self.self_attack()
+        org_settings = self.self_attack(classifier=classifier)
         self.clf = org_settings['classifier']
         self.fsl = org_settings['feat_selector']
         self.score = org_settings['score']
@@ -228,25 +246,53 @@ class AttributeExperiment:
                          for node in rpg.soc_node])
         return score / total
 
-    def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
+    def attack_experiment(self, epsilon, delta_range):
         secrets, _ = self.resampling()
         price = self.auto_attr_price()
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = AttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: [] 
+                        for secret in secret_list}
+        for delta in delta_range:
+            ran_vkp = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta)
+            for secret in secret_list:
+                tmp_line = {}
+                for alg in ML_ALGS:
+                    simulator.config(secret, epsilon, delta, alg)
+                    result = simulator.formatted_rpg_attack(ran_vkp)
+                    tmp_line[alg] = result['f1']
+                    tmp_line[alg + '-o'] = simulator.score[2]
+                result_table[secret].append(tmp_line)
+        return result_table
+
+
+    def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
+        secrets, _ = self.resampling()
+        if utility_name == 'common':
+            p_mode = 'double'
+        else:
+            p_mode = 'single'
+        price = self.auto_attr_price(utility_name)
+        price0 = self.auto_attr_price()
         utility_table = []
         secret_list = [s for s in self.secret_settings.keys()]
-        result_table = {secret: {metric: [] for metric in RESULT_METRICS}
+        result_table = {secret: {metric: [] for metric in RESULT_METRICS + ['robust']}
                         for secret in secret_list}
         simulator = AttackSimulator(self.rpg, secrets, secret_list[0])
+
         for delta in delta_range:
             ran_random = self.rpg.random_mask(secrets, epsilon, delta)
             ran_nb = self.rpg.naive_bayes_mask(secrets, epsilon, delta)
-            ran_ig = self.rpg.entropy_mask(secrets, price, epsilon, delta)
-            ran_vkp = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta)
+            ran_ig = self.rpg.entropy_mask(secrets, price, epsilon, delta, p_mode=p_mode)
+            ran_vkp = self.rpg.v_knapsack_mask(secrets, price0, epsilon, delta)
+            ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
             # Utility Calculate
             all_scores = {
-                'Random': self.attr_utility(ran_random, utility_name),
-                'NaiveBayes': self.attr_utility(ran_nb, utility_name),
-                'InfoGain': self.attr_utility(ran_ig, utility_name),
-                'V-KP': self.attr_utility(ran_vkp, utility_name)
+                'Random': self.attr_utility(ran_random, utility_name, p_mode),
+                'NaiveBayes': self.attr_utility(ran_nb, utility_name, p_mode),
+                'InfoGain': self.attr_utility(ran_ig, utility_name, p_mode),
+                'V-KP': self.attr_utility(ran_vkp, utility_name, p_mode),
+                'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode)
             }
             for secret in secret_list:
                 simulator.config(secret, epsilon, delta)
@@ -254,14 +300,32 @@ class AttributeExperiment:
                 result_nb = simulator.formatted_rpg_attack(ran_nb)
                 result_ig = simulator.formatted_rpg_attack(ran_ig)
                 result_vkp = simulator.formatted_rpg_attack(ran_vkp)
+                result_vkp_u = simulator.formatted_rpg_attack(ran_vkp_utility)
                 for metric in RESULT_METRICS:
                     metric_row = {
+                        'Origin': simulator.score[2],
                         'Random': result_random[metric],
                         'NaiveBayes': result_nb[metric],
                         'InfoGain': result_ig[metric],
-                        'V-KP': result_vkp[metric]
+                        'V-KP': result_vkp[metric],
+                        'V-KP-U': result_vkp_u[metric]
                     }
                     result_table[secret][metric].append(metric_row)
+                """ Robustness Skipped
+                robust_random = simulator.formatted_robustness(ran_random)
+                robust_nb = simulator.formatted_robustness(ran_nb)
+                robust_ig = simulator.formatted_robustness(ran_ig)
+                robust_vkp = simulator.formatted_robustness(ran_vkp)
+                robust_vkp_u = simulator.formatted_robustness(ran_vkp_utility)
+                result_table[secret]['robust'].append({
+                    'Origin': simulator.formatted_robustness(simulator.rpg),
+                    'Random': robust_random,
+                    'NaiveBayes': robust_nb,
+                    'InfoGain': robust_ig,
+                    'V-KP': robust_vkp,
+                    'V-KP-U': robust_vkp_u
+                })
+                """
             utility_table.append(all_scores)
         return pd.DataFrame(utility_table, index=delta_range), result_table
 
@@ -278,12 +342,18 @@ class AttributeExperiment:
                 pd_table.to_csv(os.path.join(output, '%s-(%s).csv' % (secret, metric)))
         logging.debug('[ran_lab] Result Output Fin.')
 
+    def save_attack_table(self, result_table, delta_range, output='out'):
+        for secret, table in result_table.items():
+            pd_table = pd.DataFrame(table, index=delta_range)
+            pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
     def __init__(self, origin_rpg, secret_settings):
         self.rpg = origin_rpg
         self.secret_settings = secret_settings
 
 
-def single_attack_test_ver2(simulator, price, secret, epsilon, deltai):
+def single_attack_test_ver2(simulator, price, secret, epsilon, delta):
     simulator.config(secret, epsilon, delta)
     # Entropy Masking
     new_ran = simulator.rpg.entropy_mask(simulator.secrets, price, epsilon, delta)
@@ -402,19 +472,57 @@ def attr_statistics(rpg) :
 
 def attr_lab_0223():
     a = FacebookNetwork()
+    rate = 1.0
     expr_settings = {
-        'aenslid-538': 1.0,
-        'aby-5': 1.0,
-        'ahnid-84': 1.0,
-        'alnid-617': 1.0,
-        'aencnid-14': 1.0
+        'aenslid-538': rate,
+        'aby-5': rate,
+        'ahnid-84': rate,
+        # 'alnid-617': rate,
+        'aencnid-14': rate
     }
-    output_dir = "/Users/jiayichen/res223/"
+    output_dir = "/Users/jiayichen/ranproject/res226-2/"
     expr = AttributeExperiment(a.rpg, expr_settings)
-    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.5, 0.05))
+    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.51, 0.05), 'common')
     utility.to_csv(os.path.join(output_dir, 'utility.csv'))
-    expr.save_result_table(result_table, np.arange(0, 0.5, 0.05), output_dir)
+    expr.save_result_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
 
+
+def attack_lab_0226():
+    a = FacebookNetwork()
+    rate = 1.0
+    expr_settings = {
+        'aenslid-538': rate,
+        'aby-5': rate,
+        'ahnid-84': rate,
+        # 'alnid-617': rate,
+        'aencnid-14': rate
+    }
+    output_dir = "/Users/jiayichen/ranproject/res226-3/"
+    expr = AttributeExperiment(a.rpg, expr_settings)
+    result_table = expr.attack_experiment(0.1, np.arange(0, 0.51, 0.05))
+    expr.save_attack_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
+
+def script_to_del():
+    a = FacebookNetwork()
+    rate = 0.5
+    expr_settings = {
+        'aenslid-538': rate,
+        'aby-5': rate,
+        'ahnid-84': rate,
+        # 'alnid-617': rate,
+        'aencnid-14': rate
+    }
+    rprice = {}
+    epsilon = 0.1
+    delta = 0.4
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    expr = AttributeExperiment(a.rpg, expr_settings)
+    secrets, _ = expr.resampling()
+    new_ran = a.rpg.entropy_relation(secrets, rprice, epsilon, delta)
+    # new_ran2 = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
+    new_ran2 = a.rpg.random_mask(secrets, epsilon, delta, 'on')
+    new_ran3 = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
@@ -428,4 +536,7 @@ if __name__ == '__main__':
     expr.show_result_table(result_table, np.arange(0, 0.4, 0.1))
     """
     # attr_statistics(FacebookNetwork().rpg)
-    attr_lab_0223()
+    # attr_lab_0223()
+    # attack_lab_0226()
+    script_to_del()
+

@@ -91,6 +91,19 @@ class InferenceAttack:
         y = self.get_labels(secret)
         return cross_val_score(clf, x, y, scoring='f1', cv=5)
 
+    def self_cross_val(self, secret, k=5, clf_type='dt'):
+        x = self.raw_attr_vector(secret)
+        y = self.get_labels(secret)
+        if clf_type == 'dt':
+            clf = DecisionTreeClassifier()
+        elif clf_type == 'lr':
+            clf = LogisticRegression()
+        elif clf_type == 'nb':
+            clf = BernoulliNB()
+        else:
+            clf = SVC()
+        return cross_val_score(clf, x, y, scoring='f1', cv=k)
+
     def __init__(self, rpgraph, secrets):
         self.rpg = rpgraph
         self.secrets = secrets
@@ -107,6 +120,17 @@ def rpg_labels(rpg, secret):
     label_y = np.array([int(rpg.attr_net.has_edge(node, secret))
                         for node in rpg.soc_node])
     return label_y
+
+def self_cross_val(x, y, k=5, clf_type='dt'):
+    if clf_type == 'dt':
+        clf = DecisionTreeClassifier()
+    elif clf_type == 'lr':
+        clf = LogisticRegression()
+    elif clf_type == 'nb':
+        clf = BernoulliNB()
+    else:
+        clf = SVC()
+    return cross_val_score(clf, x, y, scoring='f1', cv=k)
 
 
 def infer_performance(clf, fsl, t_x, t_y):

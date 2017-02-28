@@ -91,7 +91,8 @@ class MultiDimensionalKnapsack:
     def __init__(self, items, max_weights):
         self.items = items
         self.max_weights = max_weights
-        self.sorted_items = sorted(self.items, key=lambda tup: float(tup[1]) / sum(tup[2]), reverse=True)
+        # self.sorted_items = sorted(self.items, key=lambda tup: float(tup[1]) / sum(tup[2]), reverse=True)
+        self.sorted_items = sorted(self.items, key=lambda tup: sum(tup[2]) / float(tup[1]))
         self.items = self.sorted_items # Weight is negative? NO PROBLEM!!
         # print len([i[0] for i in self.items if sum(i[2]) < 0])
 
@@ -138,13 +139,13 @@ class MultiDimensionalKnapsack:
             return [max_w[i] + w[i] for i in xrange(len(w))]
 
         if metrics == 'direct':
-            ratio = lambda p, w, c: p/float(sum(w) + 1)
+            ratio = lambda p, w, c: float(sum(w)) / p
         elif metrics == 'scale':
-            ratio = lambda p, w, c: p/float(sum([(j + 1)/(float(c[i]) + 1) for i, j in enumerate(w)]) + 1)
+            ratio = lambda p, w, c: float(sum([j/float(c[i]) for i, j in enumerate(w)])) / p
         else:
             print "ERROR: no such metrics"
             return
-        greedy_items = sorted(self.items, key=lambda tup: ratio(tup[1], tup[2], self.max_weights), reverse=True)
+        greedy_items = sorted(self.items, key=lambda tup: ratio(tup[1], tup[2], self.max_weights))
         weight = [0]*len(self.max_weights)
         value = 0
         sel = []

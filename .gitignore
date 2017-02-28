@@ -4,6 +4,7 @@
 *.rn
 *.arff
 *.predict
+*.eps
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
