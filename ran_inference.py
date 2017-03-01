@@ -139,6 +139,17 @@ def infer_performance(clf, fsl, t_x, t_y):
     return precision_score(t_y, t_y_new), recall_score(t_y, t_y_new), f1_score(t_y, t_y_new)
 
 
+def infer_result(clf, fsl, t_x, t_y):
+    t_x_new = fsl.transform(t_x)
+    t_y_new = clf.predict(t_x_new)
+    return {
+        'tp': [index for index, y in enumerate(t_y_new) if y == 1 and y == t_y[index]],
+        'fp': [index for index, y in enumerate(t_y_new) if y == 1 and y != t_y[index]],
+        'tn': [index for index, y in enumerate(t_y_new) if y == 0 and y == t_y[index]],
+        'fn': [index for index, y in enumerate(t_y_new) if y == 0 and y != t_y[index]]
+    }
+
+
 class RelationAttack:
     # The class is used to generate the data for NetKit
     # For more information, please visit http://netkit-srl.sourceforge.net/

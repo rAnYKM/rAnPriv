@@ -13,10 +13,14 @@
 from __future__ import division
 import os
 import logging
+import random
 import numpy as np
 import pandas as pd
+import networkx as nx
 from snap_fbcomplete import FacebookNetwork
-from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, rpg_labels, RelationAttack, self_cross_val
+from snap_facebook import FacebookEgoNet
+from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, \
+    rpg_labels, RelationAttack, self_cross_val, infer_result
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 RESULT_METRICS = ['precision', 'recall', 'f1']
@@ -131,7 +135,6 @@ class AttackSimulator:
                 'feat_selector': fsl,
                 'score': full_att}
 
-
     def rpg_attack(self, rpg):
         full_att = infer_performance(self.clf,
                                      self.fsl,
@@ -157,6 +160,14 @@ class AttackSimulator:
         return {'precision': full_att[0],
                 'recall': full_att[1],
                 'f1': full_att[2]}
+
+    def select_rpg_attack(self, rpg):
+        result = infer_result(self.clf,
+                              self.fsl,
+                              rpg_attr_vector(rpg, self.secret, self.secrets),
+                              rpg_labels(rpg, self.secret))
+        nodes = {cate: [rpg.soc_node[index] for index in li] for cate, li in result.items()}
+        return nodes
 
     def formatted_robustness(self, rpg):
         f1 = self_cross_val(rpg_attr_vector(rpg, self.secret, self.secrets),
@@ -265,7 +276,6 @@ class AttributeExperiment:
                 result_table[secret].append(tmp_line)
         return result_table
 
-
     def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
         secrets, _ = self.resampling()
         if utility_name == 'common':
@@ -328,6 +338,31 @@ class AttributeExperiment:
                 """
             utility_table.append(all_scores)
         return pd.DataFrame(utility_table, index=delta_range), result_table
+
+    def toy_example(self, secret, epsilon, delta):
+        secrets, exposed = self.resampling()
+        price = self.auto_attr_price()
+        simulator = AttackSimulator(self.rpg, secrets, secret)
+        simulator.config(secret, epsilon, delta, 'nb')
+        ran_vkp = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta)
+        result_pre = simulator.select_rpg_attack(self.rpg)
+        result_vkp = simulator.select_rpg_attack(ran_vkp)
+        # Label all the nodes
+        prev = {}
+        post = {}
+        for cate, node_li in result_pre.items():
+            for node in node_li:
+                prev[node]= cate
+        for cate, node_li in result_vkp.items():
+            for node in node_li:
+                post[node] = cate
+        graph = nx.Graph()
+        graph.add_nodes_from(self.rpg.soc_node)
+        graph.add_edges_from(self.rpg.soc_edge)
+        nx.set_node_attributes(graph, 'prev', prev)
+        nx.set_node_attributes(graph, 'post', post)
+        nx.write_gexf(graph, 'out/toy.gexf')
+
 
     def show_result_table(self, result_table, delta_range):
         for secret, table in result_table.items():
@@ -524,6 +559,18 @@ def script_to_del():
     new_ran2 = a.rpg.random_mask(secrets, epsilon, delta, 'on')
     new_ran3 = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
 
+
+def nice_figure():
+    a = FacebookEgoNet('0')
+    rate = 1.0
+    expr_settings = {
+        'aensl-50': rate
+    }
+    expr = AttributeExperiment(a.rpg, expr_settings)
+    expr.toy_example('aensl-50', 0.1, 0.3)
+
+
+
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
     # single_attribute_batch_ver2('aenslid-52', 0.1, np.arange(0, 1.0, 0.1))
@@ -538,5 +585,5 @@ if __name__ == '__main__':
     # attr_statistics(FacebookNetwork().rpg)
     # attr_lab_0223()
     # attack_lab_0226()
-    script_to_del()
-
+    # script_to_del()
+    nice_figure()
