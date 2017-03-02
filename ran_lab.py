@@ -538,14 +538,20 @@ def attack_lab_0226():
     expr.save_attack_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
 
 def script_to_del():
-    a = FacebookNetwork()
+    # a = FacebookNetwork()
+    a = FacebookEgoNet('0')
     rate = 0.5
+    """
     expr_settings = {
         'aenslid-538': rate,
         'aby-5': rate,
         'ahnid-84': rate,
         # 'alnid-617': rate,
         'aencnid-14': rate
+    }
+    """
+    expr_settings = {
+        'aensl-50': rate
     }
     rprice = {}
     epsilon = 0.1
@@ -555,9 +561,18 @@ def script_to_del():
     expr = AttributeExperiment(a.rpg, expr_settings)
     secrets, _ = expr.resampling()
     new_ran = a.rpg.entropy_relation(secrets, rprice, epsilon, delta)
+    print(a.rpg.exceed_limits(new_ran, secrets, epsilon, delta))
     # new_ran2 = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
-    new_ran2 = a.rpg.random_mask(secrets, epsilon, delta, 'on')
-    new_ran3 = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
+    shan_bian = []
+    for i in range(20):
+        new_ran2 = a.rpg.random_relation(secrets, epsilon, delta)
+        shan_bian.append(new_ran2.soc_net.number_of_edges() - a.rpg.soc_net.number_of_edges())
+        print(a.rpg.exceed_limits(new_ran2, secrets, epsilon, delta))
+    print(np.average(shan_bian))
+
+    # new_ran3 = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
+    new_ran3 = a.rpg.eppd_relation(secrets, rprice, epsilon, delta)
+    print(a.rpg.exceed_limits(new_ran3, secrets, epsilon, delta))
 
 
 def nice_figure():
@@ -585,5 +600,5 @@ if __name__ == '__main__':
     # attr_statistics(FacebookNetwork().rpg)
     # attr_lab_0223()
     # attack_lab_0226()
-    # script_to_del()
-    nice_figure()
+    script_to_del()
+    # nice_figure()
