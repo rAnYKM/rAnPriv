@@ -603,7 +603,10 @@ class RPGraph:
             # weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
 
         # Sort items by the efficiency of each item
-        pool = sorted(items, key=lambda tup: sum(tup[2]) / float(tup[1]), reverse=True)
+        pool = sorted(items,
+                      key=lambda tup: sum(tup[2]) / float(tup[1]) / (self.soc_net.degree(tup[0][0])
+                                                                     + self.soc_net.degree(tup[0][1])),
+                      reverse=True)
         # pool = sorted(items, key=lambda tup: float(tup[1])/sum(tup[2]), reverse=False)
         # pool_toshow = [sum(tup[2]) / float(tup[1]) for tup in pool if sum(tup[2]) < 0.1]
         # print(pool_toshow)
@@ -806,7 +809,7 @@ class RPGraph:
                 w_v = np.array([self.prob_secret_on_nodes(secret, aux_pool[v] + [u]) for secret in secrets[v]])
                 max_w_u = np.array(max_weights[u])
                 max_w_v = np.array(max_weights[v])
-                eff = elem[1] / (sum(w_u) + sum(w_v)) / (small_graph.degree(u) + small_graph.degree(v))
+                eff = elem[1] / (sum(w_u) + sum(w_v)) / comm_nei[elem[0]]
 
                 if exceed_weights(w_u, max_w_u) or exceed_weights(w_v, max_w_v):
                     continue
@@ -844,6 +847,11 @@ class RPGraph:
         sel_pool = []
         aux_pool = {node: [] for node in soc_node}
         small_graph = self.soc_net.subgraph(small_graph_nodes)
+        comm_nei = {}
+        for edge in items:
+            u, v = edge[0]
+            comm_nei[edge[0]] = self.soc_net.degree(u) + self.soc_net.degree(v)
+        logging.debug('EPPD Init.')
         while items:
             choose = choose_max(items)
             if choose is None:
