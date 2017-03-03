@@ -538,10 +538,10 @@ def attack_lab_0226():
     expr.save_attack_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
 
 def script_to_del():
-    # a = FacebookNetwork()
-    a = FacebookEgoNet('0')
+    a = FacebookNetwork()
+    # a = FacebookEgoNet('0')
     rate = 0.5
-    """
+
     expr_settings = {
         'aenslid-538': rate,
         'aby-5': rate,
@@ -553,18 +553,20 @@ def script_to_del():
     expr_settings = {
         'aensl-50': rate
     }
+    """
     rprice = {}
     epsilon = 0.1
-    delta = 0.4
+    delta = 0.2
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     expr = AttributeExperiment(a.rpg, expr_settings)
     secrets, _ = expr.resampling()
     new_ran = a.rpg.entropy_relation(secrets, rprice, epsilon, delta)
     print(a.rpg.exceed_limits(new_ran, secrets, epsilon, delta))
-    # new_ran2 = a.rpg.d_knapsack_relation(secrets, rprice, epsilon, delta)
+    new_ran1_5 = a.rpg.naive_bayes_relation(secrets, epsilon, delta, 0.5)
+    print(a.rpg.exceed_limits(new_ran1_5, secrets, epsilon, delta))
     shan_bian = []
-    for i in range(20):
+    for i in range(10):
         new_ran2 = a.rpg.random_relation(secrets, epsilon, delta)
         shan_bian.append(new_ran2.soc_net.number_of_edges() - a.rpg.soc_net.number_of_edges())
         print(a.rpg.exceed_limits(new_ran2, secrets, epsilon, delta))

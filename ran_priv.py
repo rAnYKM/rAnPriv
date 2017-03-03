@@ -36,6 +36,7 @@ class RPGraph:
     >>> G.get_spd(2, ['a'])
     {'a': 1.0}
     """
+
     @staticmethod
     def __build_net(node, edge, is_directed=False):
         """A snippet func for generating a NetworkX Graph
@@ -164,6 +165,22 @@ class RPGraph:
         psa = int(s_array.dot(a_array.transpose()))
         pa = a_array.sum()
         return psa / pa
+
+    def prob_secret_on_array(self, secret, arr):
+        s_array = self.attr_array[secret]
+        psa = int(s_array.dot(arr.transpose()))
+        pa = arr.sum()
+        return psa / pa
+
+    def prob_nodes_on_secret(self, secret, nodes):
+        s_array = self.attr_array[secret]
+        a_array = np.ones(len(self.soc_node))
+        for node in nodes:
+            a_array *= self.neighbor_array[node]
+        psa = int(s_array.dot(a_array.transpose()))
+        ps = s_array.sum()
+        return psa / ps
+
     # =============================
 
     # ==== Theoretical Analysis ====
@@ -279,6 +296,7 @@ class RPGraph:
                 if self.prob_secret_on_nodes(sec, nei) > self.__get_max_weight(sec, epsilon, delta):
                     mistakes += 1
         return mistakes
+
     # ==============================
 
     # ==== Privacy Protection Algorithms ====
@@ -371,7 +389,7 @@ class RPGraph:
         soc_node = self.soc_node
         attr_node = self.attr_node
         soc_edge = []
-        attr_edge =self.attr_edge
+        attr_edge = self.attr_edge
         new_eps = {}
         for node, secret in secrets.items():
             new_eps[node] = [self.__get_max_weight(sec, epsilon, delta) for sec in secret]
@@ -456,7 +474,7 @@ class RPGraph:
         soc_node = self.soc_node
         attr_node = self.attr_node
         soc_edge = []
-        attr_edge =self.attr_edge
+        attr_edge = self.attr_edge
         new_eps = {}
         for node, secret in secrets.items():
             new_eps[node] = [self.__get_max_weight(sec, epsilon, delta) for sec in secret]
@@ -468,13 +486,18 @@ class RPGraph:
                 soc_edge.append(edge)
                 continue
             else:
-                items.append(edge)
-        pool = [] # TODO: Fix it
+                sw = sum([self.prob_secret_on_nodes(s, [u]) * factor +
+                          self.prob_nodes_on_secret(s, [u]) * (1 - factor) +
+                          self.prob_secret_on_nodes(s, [v]) * factor +
+                          self.prob_nodes_on_secret(s, [v]) * (1 - factor)
+                          for s in secret])
+                items.append((edge, sw))
+        pool = sorted(items, key=lambda tup: tup[1], reverse=False)  # TODO: Fix it
         sel_pool = list()
         aux_pool = {node: [] for node in soc_node}  # a supporting pool to record each node's related edges
         for item in pool:
             # each item is an edge
-            u, v = item  # two nodes
+            u, v = item[0]  # two nodes
             # each iteration, only tell whether it affects these two nodes' constraints
             max_w_u = new_eps[u]
             max_w_v = new_eps[v]
@@ -487,10 +510,10 @@ class RPGraph:
                 aux_pool[u].append(v)
                 aux_pool[v].append(u)
 
-        logging.debug('Random Masking: selected rate = %f' % (len(sel_pool) / len(pool)))
+        logging.debug('Naive Bayes Masking: selected rate = %f' % (len(sel_pool) / len(pool)))
         soc_edge += sel_pool
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
-        logging.debug("Random Masking: %d/%d social relations removed"
+        logging.debug("Naive Bayes Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran
 
@@ -503,6 +526,7 @@ class RPGraph:
         :param p_mode: string
         :return: RPGraph
         """
+
         # TODO: Implementation
         def exceed_weights(w, max_w):
             for wi in range(len(w)):
@@ -567,54 +591,48 @@ class RPGraph:
         soc_edge = []
         attr_edge = self.attr_edge
         # Serialize secrets and epsilon
-        node_index = {}
-        new_eps = []
         max_weight = {}
-        current = 0
+        # TODO: Rebuild the IG masking
         for node, secret in secrets.items():
-            if secret:
-                node_index[node] = current
-            else:
-                node_index[node] = -1  # NO SECRET NODE
-            for sec in secret:
-                new_eps.append(self.__get_max_weight(sec, epsilon, delta))
-                current += 1
             max_weight[node] = [self.__get_max_weight(sec, epsilon, delta) for sec in secret]
         items = list()
+        small_network_edges = []
         for edge in self.soc_net.edges():
-            u = edge[0]
-            v = edge[1]
+            u, v = edge
             if len(secrets[u]) == 0 and len(secrets[v]) == 0:
                 soc_edge.append(edge)
                 continue
             else:
-                # Calculate weight
-                weight = [0] * len(new_eps)
-                for index, sec in enumerate(secrets[u]):
-                    weight[node_index[u] + index] = self.mutual_information(v, sec, False)
-                for index, sec in enumerate(secrets[v]):
-                    weight[node_index[v] + index] = self.mutual_information(u, sec, False)
-                item = (edge, price[edge], weight)
-                items.append(item)
-        # while exceed_weights(weights, mask_ratio) and fn:
-            # index, value = max(enumerate(sw), key=operator.itemgetter(1))
-            # fn.pop(index)
-            # sw.pop(index)
-            # weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
+                small_network_edges.append(edge)
+        small_network = nx.Graph()
+        small_network.add_edges_from(small_network_edges)
+        num_edge = small_network.number_of_edges()
+        for edge in small_network_edges:
+            # Calculate weight
+            u, v = edge
+            weight = []
+            for index, sec in enumerate(secrets[u]):
+                met = small_network.degree(u) / num_edge
+                weight.append(self.mutual_information(v, sec, False) + np.log(met))
+            for index, sec in enumerate(secrets[v]):
+                met = small_network.degree(v) / num_edge
+                weight.append(self.mutual_information(u, sec, False) + np.log(met))
+            item = (edge, price[edge], weight)
+            items.append(item)
 
         # Sort items by the efficiency of each item
+        # small_network.degree(tup[0][0]) + small_network.degree(tup[0][1])
         pool = sorted(items,
-                      key=lambda tup: sum(tup[2]) / float(tup[1]) / (self.soc_net.degree(tup[0][0])
-                                                                     + self.soc_net.degree(tup[0][1])),
-                      reverse=True)
+                      key=lambda tup: sum(tup[2]) / float(tup[1]),
+                      reverse=False)
         # pool = sorted(items, key=lambda tup: float(tup[1])/sum(tup[2]), reverse=False)
         # pool_toshow = [sum(tup[2]) / float(tup[1]) for tup in pool if sum(tup[2]) < 0.1]
         # print(pool_toshow)
         sel_pool = list()
-        aux_pool = {node: [] for node in soc_node} # a supporting pool to record each node's related edges
+        aux_pool = {node: [] for node in soc_node}  # a supporting pool to record each node's related edges
         for item in pool:
             # each item is an edge
-            u, v = item[0] # two nodes
+            u, v = item[0]  # two nodes
             # each iteration, only tell whether it affects these two nodes' constraints
             max_w_u = max_weight[u]
             max_w_v = max_weight[v]
@@ -627,7 +645,7 @@ class RPGraph:
                 aux_pool[u].append(v)
                 aux_pool[v].append(u)
 
-        logging.debug('Entropy Masking: selected rate = %f' % (len(sel_pool)/len(pool)))
+        logging.debug('Entropy Masking: selected rate = %f' % (len(sel_pool) / len(pool)))
         soc_edge += sel_pool
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("Entropy Masking: %d/%d social relations removed"
@@ -671,7 +689,7 @@ class RPGraph:
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("d-Knapsack Masking (%s): %d/%d attribute edges removed"
                       % (mode, len(self.attr_edge) - len(attr_edge), len(self.attr_edge)))
-        return new_ran # , (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
+        return new_ran  # , (len(self.attr_edge) - len(attr_edge)) / float(len(self.attr_edge))
 
     def v_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
         """ knapsack-like solver
@@ -768,7 +786,7 @@ class RPGraph:
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("d-Knapsack Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
-        return new_ran # , (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
+        return new_ran  # , (len(self.soc_edge) - len(soc_edge)) / float(len(self.soc_edge))
 
     def v_knapsack_relation(self, secrets, price, epsilon, delta):
         """**AVOID USING THIS FUNCTION** EPPD is not suitable for the relation masking"""
@@ -800,24 +818,28 @@ class RPGraph:
 
     def eppd_relation(self, secrets, price, epsilon, delta):
         def choose_max(pool):
-            max_item = None
             max_eff = np.infty
-            for elem in pool:
+            max_ind = -1
+            for index, elem in enumerate(pool):
                 u, v = elem[0]
                 # Constraints u (weight u)
-                w_u = np.array([self.prob_secret_on_nodes(secret, aux_pool[u] + [v]) for secret in secrets[u]])
-                w_v = np.array([self.prob_secret_on_nodes(secret, aux_pool[v] + [u]) for secret in secrets[v]])
+                # w_u = np.array([self.prob_secret_on_nodes(secret, aux_pool[u] + [v]) for secret in secrets[u]])
+                # w_v = np.array([self.prob_secret_on_nodes(secret, aux_pool[v] + [u]) for secret in secrets[v]])
+                w_u = np.array([self.prob_secret_on_array(secret, aux_arr[u] * self.neighbor_array[v])
+                                for secret in secrets[u]])
+                w_v = np.array([self.prob_secret_on_array(secret, aux_arr[v] * self.neighbor_array[u])
+                                for secret in secrets[v]])
                 max_w_u = np.array(max_weights[u])
                 max_w_v = np.array(max_weights[v])
-                eff = elem[1] / (sum(w_u) + sum(w_v)) / comm_nei[elem[0]]
+                eff = elem[1] / (w_u.sum() + w_v.sum()) / comm_nei[elem[0]]
 
                 if exceed_weights(w_u, max_w_u) or exceed_weights(w_v, max_w_v):
                     continue
 
                 if eff <= max_eff:
-                    max_item = elem
+                    max_ind = index
                     max_eff = eff
-            return max_item
+            return max_ind
 
         def exceed_weights(w, max_w):
             if len(max_w) == 0:
@@ -832,36 +854,45 @@ class RPGraph:
         attr_edge = self.attr_edge
         soc_edge = list()
         items = list()
-        small_graph_nodes = set()
+        small_graph_edges = []
         for edge in self.soc_net.edges():
             if not (secrets[edge[0]] or secrets[edge[1]]):
                 soc_edge.append(edge)
                 continue
             item = (edge, price[edge])
             items.append(item)
-            small_graph_nodes.add(edge[0])
-            small_graph_nodes.add(edge[1])
+            small_graph_edges.append(edge)
         max_weights = {n: [self.__get_max_weight(secret, epsilon, delta) for secret in secrets[n]]
                        for n in self.soc_net.nodes()}
         org_length = len(items)
         sel_pool = []
-        aux_pool = {node: [] for node in soc_node}
-        small_graph = self.soc_net.subgraph(small_graph_nodes)
+        # aux_pool = {node: [] for node in soc_node}
+        aux_arr = {node: np.ones(len(self.soc_node)) for node in soc_node}
+        small_graph = nx.Graph()
+        small_graph.add_edges_from(small_graph_edges)
         comm_nei = {}
         for edge in items:
             u, v = edge[0]
-            comm_nei[edge[0]] = self.soc_net.degree(u) + self.soc_net.degree(v)
+            comm_nei[edge[0]] = (small_graph.degree(u) + small_graph.degree(v)) / len(small_graph_edges)
+            # comm_nei[edge[0]] = small_graph.degree(u) + small_graph.degree(v)
         logging.debug('EPPD Init.')
+        sel_num = 0
         while items:
-            choose = choose_max(items)
-            if choose is None:
+            choose_index = choose_max(items)
+            if choose_index == -1:
                 break
             else:
+                choose = items[choose_index]
                 sel_pool.append(choose[0])
                 m, n = choose[0]
-                aux_pool[m].append(n)
-                aux_pool[n].append(m)
+                aux_arr[m] = aux_arr[m] * self.neighbor_array[n]
+                aux_arr[n] = aux_arr[n] * self.neighbor_array[m]
+                # aux_pool[m].append(n)
+                # aux_pool[n].append(m)
                 items.remove(choose)
+                sel_num += 1
+                if sel_num % 100 == 0:
+                    print(sel_num)
         logging.debug('EPPD Masking: selected rate = %f' % (len(sel_pool) / org_length))
         soc_edge += sel_pool
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
@@ -893,6 +924,7 @@ class RPGraph:
                       % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
         logging.debug("score compare: %f" % val)
         return new_ran
+
     # =======================================
 
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
@@ -914,11 +946,13 @@ class RPGraph:
         #                                                                 len(self.neighbor_array.keys()),
         #                                                                time.time() - t0))
         logging.info('[RPGraph] RPGraph built: %d (%d) actors, %d (%d) edges, %d attributes and %d links'
-                      % (self.soc_net.number_of_nodes(), len(self.soc_node),
-                         self.soc_net.number_of_edges(), len(self.soc_edge),
-                         self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
-                         self.attr_net.number_of_edges()))
+                     % (self.soc_net.number_of_nodes(), len(self.soc_node),
+                        self.soc_net.number_of_edges(), len(self.soc_edge),
+                        self.attr_net.number_of_nodes() - self.soc_net.number_of_nodes(),
+                        self.attr_net.number_of_edges()))
+
 
 if __name__ == '__main__':
     import doctest
+
     doctest.testmod()
