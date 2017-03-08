@@ -5,6 +5,7 @@
 *.arff
 *.predict
 *.eps
+*.test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

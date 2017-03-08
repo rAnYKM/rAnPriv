@@ -506,7 +506,7 @@ class RPGraph:
             if exceed_weights(cur_w_u, max_w_u) or exceed_weights(cur_w_v, max_w_v):
                 continue
             else:
-                sel_pool.append(item)
+                sel_pool.append(item[0])
                 aux_pool[u].append(v)
                 aux_pool[v].append(u)
 
@@ -623,7 +623,7 @@ class RPGraph:
         # Sort items by the efficiency of each item
         # small_network.degree(tup[0][0]) + small_network.degree(tup[0][1])
         pool = sorted(items,
-                      key=lambda tup: sum(tup[2]) / float(tup[1]),
+                      key=lambda tup: (sum(tup[2]) + 1) / (float(tup[1]) + 1),
                       reverse=False)
         # pool = sorted(items, key=lambda tup: float(tup[1])/sum(tup[2]), reverse=False)
         # pool_toshow = [sum(tup[2]) / float(tup[1]) for tup in pool if sum(tup[2]) < 0.1]
@@ -831,7 +831,7 @@ class RPGraph:
                                 for secret in secrets[v]])
                 max_w_u = np.array(max_weights[u])
                 max_w_v = np.array(max_weights[v])
-                eff = elem[1] / (w_u.sum() + w_v.sum()) / comm_nei[elem[0]]
+                eff = elem[1] / (w_u.sum() + w_v.sum()) # / comm_nei[elem[0]]
 
                 if exceed_weights(w_u, max_w_u) or exceed_weights(w_v, max_w_v):
                     continue

@@ -33,6 +33,9 @@ MLS = [item + '-o' for item in MLS_ORG] + MLS_ORG
 MLS_NAMES = ['Decision Tree', 'Logistic Regression', 'Naive Bayes']
 MLS_NAMES_ALL = [item + ' (Prev.)' for item in MLS_NAMES] + [item + ' (Post.)' for item in MLS_NAMES]
 RAN_DEFAULT_OUTPUT = '/Users/jiayichen/ranproject/'
+CLF_ORG = ['wvrn', 'nolb-lr-distrib', 'logistic']
+CLF = [item + '-o' for item in CLF_ORG] + CLF_ORG
+CLF_NAMES = ['WVRN', 'NOLB-LR', 'Logistic']
 
 
 def attr_cmp_utility(filename, x_name, y_name, seq=FOUR_ALGORITHMS, cat=FOUR_NAMES, exp_no=''):
@@ -81,14 +84,14 @@ def ml_cmp(filename, x_name, y_name, attr, seq=MLS, cat=MLS_NAMES_ALL, exp_no=''
 
 def ml_cmp_b(filename, x_name, y_name, attr, seq=MLS_ORG, cat=MLS_NAMES, exp_no=''):
     table = pd.read_csv(filename, index_col=0)
-    table = attack_decrease_rate_table(table)
+    table = attack_decrease_rate_table(table, org=seq)
     table = table[seq]
     table.columns = cat
     plt.figure()
     ax = table.plot(linewidth=2, fontsize=16)
     ax.set_xlabel(x_name, fontsize=20)
     ax.set_ylabel(y_name, fontsize=20)
-    ax.set_ylim([0.6, 1.01])
+    ax.set_ylim([0.0, 1.01])
     # ax.margins(y=0.05)
     out_dir = os.path.join(load_ranfig()['OUT'], datetime.now().strftime("%Y-%m-%d"))
     if not os.path.exists(out_dir):
@@ -120,6 +123,18 @@ def expr_attr_unique(data_dir):
         attr_cmp_f1(file, x_name, 'F-Score', attr, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir)
 
 
+def expr_edge_equal(data_dir):
+    filename = 'utility-j.csv'
+    x_name = '$\delta$'
+    y_name = 'Utility ($p=p_J$)'
+    file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
+    # attrs = ['aensl-50', 'aby-5', 'ahnid-84', 'aencnid-14']  # , 'alnid-617'
+    attr_cmp_utility(file, x_name, y_name, FOUR_ALGORITHMS, FOUR_NAMES, exp_no=data_dir)
+    # for attr in attrs:
+    #     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, '%s-(f1).csv' % attr)
+    #     attr_cmp_f1(file, x_name, 'F-Score', attr, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir)
+
+
 def expr_attack(data_dir):
     x_name = '$\delta$'
     y_name = 'Decrease Rate of F-Score'
@@ -129,18 +144,28 @@ def expr_attack(data_dir):
         ml_cmp_b(file, x_name, y_name, attr, exp_no=data_dir)
 
 
-def attack_decrease_rate_table(table):
+def attack_decrease_rate_table(table, org=MLS_ORG):
     def cal_rate(row, lag):
         return (row[lag + '-o'] - row[lag])/row[lag + '-o']
 
     # panel = pd.Panel({'prev': table[MLS[:3]], 'post': table[MLS[3:]]})
-    new_table = pd.DataFrame(columns=MLS_ORG, index=table.index.values)
-    for ml in MLS_ORG:
+    new_table = pd.DataFrame(columns=org, index=table.index.values)
+    for ml in org:
         new_table[ml] = table.apply(cal_rate, axis=1, lag=ml)
     return new_table
+
+def expr_attack_relation(data_dir):
+    x_name = '$\delta$'
+    y_name = 'Decrease Rate of F-Score'
+    attrs = ['aensl-50']  # , 'alnid-617'
+    for attr in attrs:
+        file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, '%s.csv' % attr)
+        ml_cmp_b(file, x_name, y_name, attr, seq=CLF_ORG, cat=CLF_NAMES, exp_no=data_dir)
 
 
 if __name__ == '__main__':
     # expr_attr_equal('res225')
     # expr_attr_unique('res226')
-    expr_attack('res226-3')
+    # expr_attack('res226-3')
+    # expr_edge_equal('res306')
+    expr_attack_relation('res306-3')

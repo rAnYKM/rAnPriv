@@ -25,6 +25,7 @@ from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, \
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 RESULT_METRICS = ['precision', 'recall', 'f1']
 ML_ALGS = ['dt', 'lr', 'nb']
+RCLASSIFIERS = ['wvrn', 'logistic', 'nobayes', 'nolb-lr-distrib']
 
 
 def single_attribute_test(secret, epsilon, delta):
@@ -388,6 +389,178 @@ class AttributeExperiment:
         self.secret_settings = secret_settings
 
 
+class RelationExperiment:
+    def resampling(self):
+        secrets = {node: [] for node in self.rpg.soc_node}
+        exposed = {node: [] for node in self.rpg.soc_node}
+        for secret, rate in self.secret_settings.items():
+            # Select all nodes with the secret
+            nodes = np.array([node for node in self.rpg.attr_net.neighbors(secret)])
+            # rAnDOM
+            indices = np.random.permutation(nodes.shape[0])
+            # pool_a: nodes thinking secret, pool_b: nodes not thinking secret
+            size = int(nodes.shape[0] * rate)
+            pool_a_idx, pool_b_idx = indices[:size], indices[size:]
+            # pool_a, pool_b = nodes[pool_a_idx,:], nodes[pool_b_idx,:]
+            for idx in pool_a_idx:
+                secrets[nodes[idx]] += [secret]
+            for idx in pool_b_idx:
+                exposed[nodes[idx]] += [secret]
+            logging.info('[ran_lab] resampling: %s - s:%d e:%d' % (secret, len(pool_a_idx), len(pool_b_idx)))
+        return secrets, exposed
+
+    def generate_test_nodes(self, secret, rate, secrets, exposed):
+        non_secret_nodes = np.array([node for node in self.rpg.soc_node
+                                     if len(secrets[node]) == 0 and len(exposed[node]) == 0])
+        indices = np.random.permutation(non_secret_nodes.shape[0])
+        size = int(non_secret_nodes.shape[0] * rate)
+        pool_idx = indices[:size]
+        exposed_nodes = [node for node, secret in exposed.items() if len(exposed[node]) != 0]
+        test_nodes = non_secret_nodes[pool_idx].tolist() + exposed_nodes
+        return test_nodes
+
+    def auto_edge_price(self, mode='equal'):
+        values = dict()
+        if mode == 'equal':
+            for edge in self.rpg.soc_net.edges():
+                values[edge] = 1
+        elif mode == 'Jaccard':
+            for edge in self.rpg.soc_net.edges():
+                u = edge[0]
+                v = edge[1]
+                u_set = set(self.rpg.attr_net.neighbors(u))
+                v_set = set(self.rpg.attr_net.neighbors(v))
+                values[edge] = len(u_set & v_set) / float(len(u_set | v_set))
+        elif mode == 'AA':
+            for edge in self.rpg.soc_net.edges():
+                u = edge[0]
+                v = edge[1]
+                u_set = set(self.rpg.attr_net.neighbors(u))
+                v_set = set(self.rpg.attr_net.neighbors(v))
+                values[edge] = sum([np.log(len([node for node in self.rpg.attr_net.neighbors(w)]))
+                                    for w in u_set & v_set])
+        return values
+
+    def edge_utility(self, rpg, mode='equal', p_mode='single'):
+        price = self.auto_edge_price(mode)
+        if p_mode == 'single':
+            total = sum([price[edge] for edge in self.rpg.soc_net.edges()])
+            score = sum([price[edge] for edge in rpg.soc_net.edges()])
+        else:
+            total = sum([sum([price[node][attr] for attr in self.rpg.attr_net.neighbors(node)])
+                         for node in self.rpg.soc_node])
+            score = sum([sum([price[node][attr] for attr in rpg.attr_net.neighbors(node)])
+                         for node in rpg.soc_node])
+        return score / total
+
+    def delta_experiment(self, epsilon, delta_range, rate=0.5, utility_name='equal'):
+        secrets, exposed = self.resampling()
+        if utility_name == 'common':
+            p_mode = 'double'
+        else:
+            p_mode = 'single'
+        price = self.auto_edge_price(utility_name)
+        utility_table = []
+        secret_list = [s for s in self.secret_settings.keys()]
+        result_table = {secret: {metric: [] for metric in RESULT_METRICS}
+                        for secret in secret_list}
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        test_set = {}
+        for secret in secret_list:
+            test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        for delta in delta_range:
+            ran_random = self.rpg.random_mask(secrets, epsilon, delta, mode='on')
+            ran_nb = self.rpg.naive_bayes_relation(secrets, epsilon, delta)
+            ran_ig = self.rpg.entropy_relation(secrets, price, epsilon, delta)
+            ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta)
+            # ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
+            # Utility Calculate
+            all_scores = {
+                'Random': self.edge_utility(ran_random, utility_name, p_mode),
+                'NaiveBayes': self.edge_utility(ran_nb, utility_name, p_mode),
+                'InfoGain': self.edge_utility(ran_ig, utility_name, p_mode),
+                'V-KP': self.edge_utility(ran_vkp, utility_name, p_mode),
+                # 'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode)
+            }
+            for secret in secret_list:
+                simulator.config(secret, epsilon, delta)
+                result_org = simulator.test_attack(test_set[secret], secret)
+                result_random = simulator.new_rpg_attack(ran_random, test_set[secret], secret)
+                result_nb = simulator.new_rpg_attack(ran_nb, test_set[secret], secret)
+                result_ig = simulator.new_rpg_attack(ran_ig, test_set[secret], secret)
+                result_vkp = simulator.new_rpg_attack(ran_vkp, test_set[secret], secret)
+                # esult_vkp_u = simulator.formatted_rpg_attack(ran_vkp_utility)
+                for metric in RESULT_METRICS:
+                    metric_row = {
+                        'Origin': result_org[metric],
+                        'Random': result_random[metric],
+                        'NaiveBayes': result_nb[metric],
+                        'InfoGain': result_ig[metric],
+                        'V-KP': result_vkp[metric],
+                        # 'V-KP-U': result_vkp_u[metric]
+                    }
+                    result_table[secret][metric].append(metric_row)
+            utility_table.append(all_scores)
+        return pd.DataFrame(utility_table, index=delta_range), result_table
+
+    def attack_experiment(self, epsilon, delta_range, rate=0.5):
+        secrets, exposed = self.resampling()
+        price = self.auto_edge_price()
+        test_set = {}
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for secret in secret_list:
+            test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        for delta in delta_range:
+
+            ran_vkp = self.rpg.v_knapsack_relation(secrets, price, epsilon, delta)
+            for secret in secret_list:
+                tmp_line = {}
+                simulator.config(secret, epsilon, delta)
+
+                for alg in RCLASSIFIERS:
+                    result_vkp = simulator.new_rpg_attack(ran_vkp, test_set[secret], secret, alg)
+                    result_org = simulator.test_attack(test_set[secret], secret, alg)
+                    tmp_line[alg] = result_vkp['f1']
+                    tmp_line[alg + '-o'] = result_org['f1']
+                print(tmp_line)
+                result_table[secret].append(tmp_line)
+        return result_table
+
+    def small_test_expr(self, secret, rate):
+        secrets, exposed = self.resampling()
+        test_set = self.generate_test_nodes(secret, rate, secrets, exposed)
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret)
+        result = simulator.test_attack(test_set, secret)
+        return result
+
+    def relation_attack(self, rpg, secret, rate, secrets, exposed):
+        # secrets, exposed = self.resampling()
+        test_set = self.generate_test_nodes(secret, rate, secrets, exposed)
+        simulator = RelationAttackSimulator(rpg, secrets, secret)
+        result = simulator.test_attack(test_set, secret)
+        return result
+
+    def save_attack_table(self, result_table, delta_range, output='out'):
+        for secret, table in result_table.items():
+            pd_table = pd.DataFrame(table, index=delta_range)
+            pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
+    def save_result_table(self, result_table, delta_range, output="out"):
+        for secret, table in result_table.items():
+            for metric, content in table.items():
+                pd_table = pd.DataFrame(content, index=delta_range)
+                pd_table.to_csv(os.path.join(output, '%s-(%s).csv' % (secret, metric)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
+    def __init__(self, origin_rpg, secret_settings):
+        self.rpg = origin_rpg
+        self.secret_settings = secret_settings
+
+
 def single_attack_test_ver2(simulator, price, secret, epsilon, delta):
     simulator.config(secret, epsilon, delta)
     # Entropy Masking
@@ -457,13 +630,23 @@ class RelationAttackSimulator:
         f1_list = [item['f1'] for item in formatted]
         return np.average(f1_list)
 
+    def test_attack(self, test_set, secret, classifier='wrvn'):
+        self.attacker.generate_data_set_relation_only(secret)
+        result = self.attacker.run_test(test_set, secret, classifier=classifier)
+        return self.attacker.result_formatter(result, secret)[0]
+
+    def new_rpg_attack(self, rpg, test_set, secret, classifier='wrvn'):
+        self.attacker.rpg_generate_data_set(rpg, secret)
+        result = self.attacker.run_test(test_set, secret, classifier=classifier)
+        return self.attacker.result_formatter(result, secret)[0]
+
     def config(self, secret, epsilon, delta):
         self.secret = secret
         self.epsilon = epsilon
         self.delta = delta
         self.attacker.generate_data_set(secret)
 
-    def __init__(self, rpg, secrets, secret, filename, epsilon=0.1, delta=0.0):
+    def __init__(self, rpg, secrets, secret, filename='ranykm', epsilon=0.1, delta=0.0):
         self.rpg = rpg
         self.secrets = secrets
         self.secret = secret
@@ -586,7 +769,34 @@ def nice_figure():
     expr = AttributeExperiment(a.rpg, expr_settings)
     expr.toy_example('aensl-50', 0.1, 0.3)
 
+def relation_small_test():
+    a = FacebookEgoNet('0')
+    rate = 0.5
+    rprice = {}
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    expr_settings = {
+        'aensl-50': rate
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    output_dir = "/Users/jiayichen/ranproject/res306-2/"
+    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.21, 0.02), rate, utility_name='AA')
+    utility.to_csv(os.path.join(output_dir, 'utility-a.csv'))
+    expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
 
+def attack_lab_0306():
+    a = FacebookEgoNet('0')
+    rate = 0.5
+    rprice = {}
+    for i in a.rpg.soc_net.edges():
+        rprice[i] = 1
+    expr_settings = {
+        'aensl-50': rate
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    output_dir = "/Users/jiayichen/ranproject/res306-3/"
+    result_table = expr.attack_experiment(0.1, np.arange(0, 0.21, 0.02))
+    expr.save_attack_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
@@ -602,5 +812,7 @@ if __name__ == '__main__':
     # attr_statistics(FacebookNetwork().rpg)
     # attr_lab_0223()
     # attack_lab_0226()
-    script_to_del()
+    # script_to_del()
     # nice_figure()
+    # relation_small_test()
+    attack_lab_0306()
