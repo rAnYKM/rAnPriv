@@ -124,9 +124,9 @@ def expr_attr_unique(data_dir):
 
 
 def expr_edge_equal(data_dir):
-    filename = 'utility-j.csv'
+    filename = 'utility-A.csv'
     x_name = '$\delta$'
-    y_name = 'Utility ($p=p_J$)'
+    y_name = 'Utility ($p=p_A$)'
     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
     # attrs = ['aensl-50', 'aby-5', 'ahnid-84', 'aencnid-14']  # , 'alnid-617'
     attr_cmp_utility(file, x_name, y_name, FOUR_ALGORITHMS, FOUR_NAMES, exp_no=data_dir)
@@ -168,4 +168,5 @@ if __name__ == '__main__':
     # expr_attr_unique('res226')
     # expr_attack('res226-3')
     # expr_edge_equal('res306')
-    expr_attack_relation('res306-3')
+    # expr_attack_relation('res306-3')
+    expr_edge_equal('res311')

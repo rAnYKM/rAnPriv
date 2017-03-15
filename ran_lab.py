@@ -25,7 +25,7 @@ from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, \
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 RESULT_METRICS = ['precision', 'recall', 'f1']
 ML_ALGS = ['dt', 'lr', 'nb']
-RCLASSIFIERS = ['wvrn', 'logistic', 'nobayes', 'nolb-lr-distrib']
+RCLASSIFIERS = ['wvrn', 'cdrn-norm-cos', 'nolb-lr-count']
 
 
 def single_attribute_test(secret, epsilon, delta):
@@ -277,6 +277,7 @@ class AttributeExperiment:
                 result_table[secret].append(tmp_line)
         return result_table
 
+
     def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
         secrets, _ = self.resampling()
         if utility_name == 'common':
@@ -364,7 +365,6 @@ class AttributeExperiment:
         nx.set_node_attributes(graph, 'post', post)
         nx.write_gexf(graph, 'out/toy.gexf')
 
-
     def show_result_table(self, result_table, delta_range):
         for secret, table in result_table.items():
             for metric, content in table.items():
@@ -411,12 +411,15 @@ class RelationExperiment:
 
     def generate_test_nodes(self, secret, rate, secrets, exposed):
         non_secret_nodes = np.array([node for node in self.rpg.soc_node
-                                     if len(secrets[node]) == 0 and len(exposed[node]) == 0])
+                                     if secret not in secrets[node] and secret not in exposed[node]])
         indices = np.random.permutation(non_secret_nodes.shape[0])
         size = int(non_secret_nodes.shape[0] * rate)
+
         pool_idx = indices[:size]
-        exposed_nodes = [node for node, secret in exposed.items() if len(exposed[node]) != 0]
-        test_nodes = non_secret_nodes[pool_idx].tolist() + exposed_nodes
+        secret_nodes = [node for node, sec in secrets.items() if secret in sec]
+        test_nodes = non_secret_nodes[pool_idx].tolist() + secret_nodes
+        print(size, size + len(secret_nodes), len(self.rpg.soc_node))
+        logging.debug('expected rate = %f ,true rate = %f' % (rate, len(test_nodes)/len(self.rpg.soc_node)))
         return test_nodes
 
     def auto_edge_price(self, mode='equal'):
@@ -472,7 +475,7 @@ class RelationExperiment:
             ran_random = self.rpg.random_mask(secrets, epsilon, delta, mode='on')
             ran_nb = self.rpg.naive_bayes_relation(secrets, epsilon, delta)
             ran_ig = self.rpg.entropy_relation(secrets, price, epsilon, delta)
-            ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta)
+            ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta, True)
             # ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
             # Utility Calculate
             all_scores = {
@@ -514,12 +517,10 @@ class RelationExperiment:
         for secret in secret_list:
             test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
         for delta in delta_range:
-
-            ran_vkp = self.rpg.v_knapsack_relation(secrets, price, epsilon, delta)
+            ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta, True)
             for secret in secret_list:
                 tmp_line = {}
                 simulator.config(secret, epsilon, delta)
-
                 for alg in RCLASSIFIERS:
                     result_vkp = simulator.new_rpg_attack(ran_vkp, test_set[secret], secret, alg)
                     result_org = simulator.test_attack(test_set[secret], secret, alg)
@@ -527,6 +528,47 @@ class RelationExperiment:
                     tmp_line[alg + '-o'] = result_org['f1']
                 print(tmp_line)
                 result_table[secret].append(tmp_line)
+        return result_table
+
+    def attack_cross_experiment(self, epsilon, delta_range, rate=0.5):
+        secrets, exposed = self.resampling()
+        price = self.auto_edge_price()
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for delta in delta_range:
+            ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta, True)
+            for secret in secret_list:
+                tmp_line = {}
+                simulator.config(secret, epsilon, delta)
+                for alg in RCLASSIFIERS:
+                    sub_sim = RelationAttackSimulator(ran_vkp, secrets, secret)
+                    result_vkp = sub_sim.attack(rate)
+                    result_org = simulator.attack(rate)
+                    tmp_line[alg] = result_vkp
+                    tmp_line[alg + '-o'] = result_org
+                print(tmp_line)
+                result_table[secret].append(tmp_line)
+        return result_table
+
+    def org_attack(self, epsilon, delta, rate=0.5):
+        secrets, exposed = self.resampling()
+        test_set = {}
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for secret in secret_list:
+            test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        for secret in secret_list:
+            tmp_line = {}
+            simulator.config(secret, epsilon, delta)
+            for alg in RCLASSIFIERS:
+                result_org = simulator.test_attack(test_set[secret], secret, alg)
+                tmp_line[alg] = result_org['f1']
+            print(tmp_line)
+            result_table[secret].append(tmp_line)
         return result_table
 
     def small_test_expr(self, secret, rate):
@@ -542,6 +584,19 @@ class RelationExperiment:
         simulator = RelationAttackSimulator(rpg, secrets, secret)
         result = simulator.test_attack(test_set, secret)
         return result
+
+    def plain_attack(self, epsilon, delta, rate=0.5):
+        secrets, exposed = self.resampling()
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for secret in secret_list:
+            simulator.config(secret, epsilon, delta)
+            result_org = simulator.attack(rate)
+            print(result_org)
+            result_table[secret].append(result_org)
+        return result_table
 
     def save_attack_table(self, result_table, delta_range, output='out'):
         for secret, table in result_table.items():
@@ -630,12 +685,12 @@ class RelationAttackSimulator:
         f1_list = [item['f1'] for item in formatted]
         return np.average(f1_list)
 
-    def test_attack(self, test_set, secret, classifier='wrvn'):
+    def test_attack(self, test_set, secret, classifier='wvrn'):
         self.attacker.generate_data_set_relation_only(secret)
         result = self.attacker.run_test(test_set, secret, classifier=classifier)
         return self.attacker.result_formatter(result, secret)[0]
 
-    def new_rpg_attack(self, rpg, test_set, secret, classifier='wrvn'):
+    def new_rpg_attack(self, rpg, test_set, secret, classifier='wvrn'):
         self.attacker.rpg_generate_data_set(rpg, secret)
         result = self.attacker.run_test(test_set, secret, classifier=classifier)
         return self.attacker.result_formatter(result, secret)[0]
@@ -721,10 +776,10 @@ def attack_lab_0226():
     expr.save_attack_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
 
 def script_to_del():
-    a = FacebookNetwork()
-    # a = FacebookEgoNet('0')
+    # a = FacebookNetwork()
+    a = FacebookEgoNet('0')
     rate = 0.5
-
+    """
     expr_settings = {
         'aenslid-538': rate,
         'aby-5': rate,
@@ -736,10 +791,10 @@ def script_to_del():
     expr_settings = {
         'aensl-50': rate
     }
-    """
+
     rprice = {}
     epsilon = 0.1
-    delta = 0.2
+    delta = 0.12
     for i in a.rpg.soc_net.edges():
         rprice[i] = 1
     expr = AttributeExperiment(a.rpg, expr_settings)
@@ -758,6 +813,8 @@ def script_to_del():
     # new_ran3 = a.rpg.v_knapsack_relation(secrets, rprice, epsilon, delta)
     new_ran3 = a.rpg.eppd_relation(secrets, rprice, epsilon, delta)
     print(a.rpg.exceed_limits(new_ran3, secrets, epsilon, delta))
+    new_ran4 = a.rpg.eppd_relation(secrets, rprice, epsilon, delta, True)
+    print(a.rpg.exceed_limits(new_ran4, secrets, epsilon, delta))
 
 
 def nice_figure():
@@ -769,20 +826,35 @@ def nice_figure():
     expr = AttributeExperiment(a.rpg, expr_settings)
     expr.toy_example('aensl-50', 0.1, 0.3)
 
-def relation_small_test():
-    a = FacebookEgoNet('0')
+def relation_lab_0308():
+
+    a = FacebookNetwork()
     rate = 0.5
-    rprice = {}
-    for i in a.rpg.soc_net.edges():
-        rprice[i] = 1
+    expr_settings = {
+        'aenslid-538': rate,
+        'aby-5': rate,
+        'ahnid-84': rate,
+        # 'alnid-617': rate,
+        'aencnid-14': rate
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    output_dir = "/Users/jiayichen/ranproject/res311/"
+    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.51, 0.1), rate, utility_name='AA')
+    utility.to_csv(os.path.join(output_dir, 'utility-A.csv'))
+    expr.save_result_table(result_table, np.arange(0, 0.51, 0.1), output_dir)
+
+def relation_small_test():
+    a = FacebookNetwork()
+    rate = 0.5
     expr_settings = {
         'aensl-50': rate
     }
     expr = RelationExperiment(a.rpg, expr_settings)
-    output_dir = "/Users/jiayichen/ranproject/res306-2/"
+    output_dir = "/Users/jiayichen/ranproject/res308/"
     utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.21, 0.02), rate, utility_name='AA')
     utility.to_csv(os.path.join(output_dir, 'utility-a.csv'))
     expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
+
 
 def attack_lab_0306():
     a = FacebookEgoNet('0')
@@ -794,9 +866,44 @@ def attack_lab_0306():
         'aensl-50': rate
     }
     expr = RelationExperiment(a.rpg, expr_settings)
-    output_dir = "/Users/jiayichen/ranproject/res306-3/"
-    result_table = expr.attack_experiment(0.1, np.arange(0, 0.21, 0.02))
+    output_dir = "/Users/jiayichen/ranproject/res314/"
+    result_table = expr.attack_experiment(0.1, np.arange(0, 0.21, 0.02), rate)
     expr.save_attack_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
+
+
+def attack_lab_0313():
+    a = FacebookNetwork()
+    rate = 0.5
+    expr_settings = {
+        'aenslid-538': rate,
+        'aby-5': rate,
+        'ahnid-84': rate,
+        # 'alnid-617': rate,
+        'aencnid-14': rate
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    output_dir = "/Users/jiayichen/ranproject/res313/"
+    result_table = expr.attack_experiment(0.1, np.arange(0, 0.51, 0.1))
+    expr.save_attack_table(result_table, np.arange(0, 0.51, 0.1), output_dir)
+
+
+def original_attack():
+    a = FacebookNetwork()
+    for rate in np.arange(0.1, 1.0, 0.1):
+        print('current rate : %f' % rate)
+        expr_settings = {
+            'aenslid-538': rate,
+            # 'aby-5': rate,
+            # 'ahnid-84': rate,
+            # 'alnid-617': rate,
+            # 'aencnid-14': rate
+        }
+        expr = RelationExperiment(a.rpg, expr_settings)
+
+        print(expr.org_attack(0.1, 0.2, rate))
+    # print(expr.plain_attack(0.1, 0.2, rate=0.5))
+
+
 
 if __name__ == '__main__':
     # single_attribute_test('aenslid-538', 0.1, 0)
@@ -815,4 +922,7 @@ if __name__ == '__main__':
     # script_to_del()
     # nice_figure()
     # relation_small_test()
-    attack_lab_0306()
+    # attack_lab_0306()
+    # relation_lab_0308()
+    attack_lab_0313()
+    # original_attack()

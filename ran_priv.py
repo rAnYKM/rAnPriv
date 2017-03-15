@@ -816,7 +816,55 @@ class RPGraph:
         logging.debug("score compare: %f" % val)
         return new_ran
 
-    def eppd_relation(self, secrets, price, epsilon, delta):
+    def eppd_relation(self, secrets, price, epsilon, delta, boost=False):
+        def boost_choose_max(pool, cached=None):
+            max_eff = np.infty
+            max_ind = -1
+            if cached is None:
+                # First run
+                cached = {}
+                for elem in pool:
+                    u, v = elem[0]
+                    w_u = np.array([self.prob_secret_on_array(secret, aux_arr[u] * self.neighbor_array[v])
+                                    for secret in secrets[u]])
+                    w_v = np.array([self.prob_secret_on_array(secret, aux_arr[v] * self.neighbor_array[u])
+                                    for secret in secrets[v]])
+                    cached[elem[0]] = [w_u, w_v, False]
+
+            for index, elem in enumerate(pool):
+                u, v = elem[0]
+                # Constraints u (weight u)
+                # w_u = np.array([self.prob_secret_on_nodes(secret, aux_pool[u] + [v]) for secret in secrets[u]])
+                # w_v = np.array([self.prob_secret_on_nodes(secret, aux_pool[v] + [u]) for secret in secrets[v]])
+                load_cache = cached[elem[0]]
+                if load_cache[2]:
+                    w_u = np.array([self.prob_secret_on_array(secret, aux_arr[u] * self.neighbor_array[v])
+                                    for secret in secrets[u]])
+                    w_v = np.array([self.prob_secret_on_array(secret, aux_arr[v] * self.neighbor_array[u])
+                                    for secret in secrets[v]])
+                    cached[elem[0]] = [w_u, w_v, False]
+                else:
+                    w_u = load_cache[0]
+                    w_v = load_cache[1]
+                max_w_u = np.array(max_weights[u])
+                max_w_v = np.array(max_weights[v])
+                eff = elem[1] / (w_u.sum() + w_v.sum()) / comm_nei[elem[0]]
+
+                if exceed_weights(w_u, max_w_u) or exceed_weights(w_v, max_w_v):
+                    continue
+
+                if eff <= max_eff:
+                    max_ind = index
+                    max_eff = eff
+            if max_ind != -1:
+                cho = pool[max_ind][0]
+                infected_edges = [item[0] for item in pool
+                                  if cho[0] in item[0] or cho[1] in item[0]]
+                for edge in infected_edges:
+                    cached[edge][2] = True
+            return max_ind, cached
+
+
         def choose_max(pool):
             max_eff = np.infty
             max_ind = -1
@@ -831,7 +879,7 @@ class RPGraph:
                                 for secret in secrets[v]])
                 max_w_u = np.array(max_weights[u])
                 max_w_v = np.array(max_weights[v])
-                eff = elem[1] / (w_u.sum() + w_v.sum()) # / comm_nei[elem[0]]
+                eff = elem[1] / (w_u.sum() + w_v.sum()) / comm_nei[elem[0]]
 
                 if exceed_weights(w_u, max_w_u) or exceed_weights(w_v, max_w_v):
                     continue
@@ -877,8 +925,12 @@ class RPGraph:
             # comm_nei[edge[0]] = small_graph.degree(u) + small_graph.degree(v)
         logging.debug('EPPD Init.')
         sel_num = 0
+        cached = None
         while items:
-            choose_index = choose_max(items)
+            if boost :
+                choose_index, cached = boost_choose_max(items, cached)
+            else:
+                choose_index = choose_max(items)
             if choose_index == -1:
                 break
             else:
@@ -927,6 +979,34 @@ class RPGraph:
 
     # =======================================
 
+    # ==============Save & Load==============
+    def save_rpg(self, filename):
+        with open(filename + '.soc', 'wb') as fp:
+            for node in self.soc_node:
+                fp.write(node + '\n')
+        with open(filename + '.attr', 'wb') as fp:
+            for node in self.attr_node:
+                fp.write(node + '\n')
+        with open(filename + '.edge', 'wb') as fp:
+            for edge in self.soc_edge:
+                fp.write(','.join(edge) + '\n')
+        with open(filename + '.link', 'wb') as fp:
+            for edge in self.attr_edge:
+                fp.write(','.join(edge) + '\n')
+
+    @staticmethod
+    def load_rpg(filename, is_directed=False):
+        with open(filename + '.soc', 'wb') as fp:
+            soc_node = [node.strip() for node in fp.readlines()]
+        with open(filename + '.attr', 'wb') as fp:
+            attr_node = [node.strip() for node in fp.readlines()]
+        with open(filename + '.edge', 'wb') as fp:
+            soc_edge = [tuple(edge.strip().split(',')) for edge in fp.readlines()]
+        with open(filename + '.link', 'wb') as fp:
+            attr_edge = [tuple(edge.strip().split(',')) for edge in fp.readlines()]
+        return RPGraph(soc_node, attr_node, soc_edge, attr_edge, is_directed)
+    # =======================================
+
     def __init__(self, soc_node, attr_node, soc_edge, attr_edge, is_directed=False):
         self.is_directed = is_directed
         self.soc_node = soc_node
@@ -954,5 +1034,4 @@ class RPGraph:
 
 if __name__ == '__main__':
     import doctest
-
     doctest.testmod()
