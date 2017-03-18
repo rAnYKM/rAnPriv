@@ -18,6 +18,7 @@ from ranfig import load_ranfig
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 from sklearn.model_selection import cross_val_score
@@ -75,6 +76,16 @@ class InferenceAttack:
 
     def lr_classifier(self, secret):
         clf = LogisticRegression()
+        x = self.raw_attr_vector(secret)
+        y = self.get_labels(secret)
+        fsl = self.feature_sel(secret)
+        new_x = fsl.transform(x)
+        clf.fit(new_x, y)
+        new_y = clf.predict(new_x)
+        return clf, fsl, self.evaluate(new_y, y)
+
+    def rf_classifier(self, secret):
+        clf = RandomForestClassifier()
         x = self.raw_attr_vector(secret)
         y = self.get_labels(secret)
         fsl = self.feature_sel(secret)

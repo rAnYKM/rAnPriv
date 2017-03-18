@@ -24,7 +24,7 @@ from ran_inference import InferenceAttack, infer_performance, rpg_attr_vector, \
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 RESULT_METRICS = ['precision', 'recall', 'f1']
-ML_ALGS = ['dt', 'lr', 'nb']
+ML_ALGS = ['dt', 'rf', 'nb', 'lr']
 RCLASSIFIERS = ['wvrn', 'cdrn-norm-cos', 'nolb-lr-count']
 
 
@@ -125,6 +125,8 @@ class AttackSimulator:
             clf, fsl, result = org.nb_classifier(self.secret)
         elif classifier == 'lr':
             clf, fsl, result = org.lr_classifier(self.secret)
+        elif classifier == 'rf':
+            clf, fsl, result = org.rf_classifier(self.secret)
         else:
             clf, fsl, result = org.svm_classifier(self.secret)
         # score = org.score(clf, secret)
@@ -233,7 +235,7 @@ class AttributeExperiment:
                 values[attr] = 1
         elif mode == 'unique':
             for attr in self.rpg.attr_node:
-                values[attr] = 1 / float(len(self.rpg.attr_net.neighbors(attr)))
+                values[attr] = 1 / np.log(float(len(self.rpg.attr_net.neighbors(attr))) + 1)
         elif mode == 'common':
             for node in self.rpg.soc_node:
                 attrs = [attr for attr in self.rpg.attr_net.neighbors_iter(node)]
@@ -244,18 +246,22 @@ class AttributeExperiment:
                     values[node][attr] = (len(set_n & set_a) + 1) / float(len(set_n) + 1)
         return values
 
-    def attr_utility(self, rpg, mode='equal', p_mode='single'):
+    def attr_utility(self, rpg, mode='equal', p_mode='single', affected=None):
         price = self.auto_attr_price(mode)
+        if affected is None:
+            all_nodes = self.rpg.soc_node
+        else:
+            all_nodes = affected
         if p_mode == 'single':
             total = sum([sum([price[attr] for attr in self.rpg.attr_net.neighbors(node)])
-                         for node in self.rpg.soc_node])
+                         for node in all_nodes])
             score = sum([sum([price[attr] for attr in rpg.attr_net.neighbors(node)])
-                         for node in rpg.soc_node])
+                         for node in all_nodes])
         else:
             total = sum([sum([price[node][attr] for attr in self.rpg.attr_net.neighbors(node)])
-                         for node in self.rpg.soc_node])
+                         for node in all_nodes])
             score = sum([sum([price[node][attr] for attr in rpg.attr_net.neighbors(node)])
-                         for node in rpg.soc_node])
+                         for node in all_nodes])
         return score / total
 
     def attack_experiment(self, epsilon, delta_range):
@@ -293,6 +299,7 @@ class AttributeExperiment:
         simulator = AttackSimulator(self.rpg, secrets, secret_list[0])
 
         for delta in delta_range:
+            affect_nodes = [node for node, secret in secrets.items() if len(secret) != 0]
             ran_random = self.rpg.random_mask(secrets, epsilon, delta)
             ran_nb = self.rpg.naive_bayes_mask(secrets, epsilon, delta)
             ran_ig = self.rpg.entropy_mask(secrets, price, epsilon, delta, p_mode=p_mode)
@@ -300,12 +307,14 @@ class AttributeExperiment:
             ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
             # Utility Calculate
             all_scores = {
-                'Random': self.attr_utility(ran_random, utility_name, p_mode),
-                'NaiveBayes': self.attr_utility(ran_nb, utility_name, p_mode),
-                'InfoGain': self.attr_utility(ran_ig, utility_name, p_mode),
-                'V-KP': self.attr_utility(ran_vkp, utility_name, p_mode),
-                'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode)
+                'Random': self.attr_utility(ran_random, utility_name, p_mode, affected=affect_nodes),
+                'NaiveBayes': self.attr_utility(ran_nb, utility_name, p_mode, affected=affect_nodes),
+                'InfoGain': self.attr_utility(ran_ig, utility_name, p_mode, affected=affect_nodes),
+                'V-KP': self.attr_utility(ran_vkp, utility_name, p_mode, affected=affect_nodes),
+                'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode, affected=affect_nodes)
             }
+            print(all_scores)
+            """
             for secret in secret_list:
                 simulator.config(secret, epsilon, delta)
                 result_random = simulator.formatted_rpg_attack(ran_random)
@@ -323,7 +332,8 @@ class AttributeExperiment:
                         'V-KP-U': result_vkp_u[metric]
                     }
                     result_table[secret][metric].append(metric_row)
-                """ Robustness Skipped
+            """
+            """ Robustness Skipped
                 robust_random = simulator.formatted_robustness(ran_random)
                 robust_nb = simulator.formatted_robustness(ran_nb)
                 robust_ig = simulator.formatted_robustness(ran_ig)
@@ -337,7 +347,7 @@ class AttributeExperiment:
                     'V-KP': robust_vkp,
                     'V-KP-U': robust_vkp_u
                 })
-                """
+            """
             utility_table.append(all_scores)
         return pd.DataFrame(utility_table, index=delta_range), result_table
 
@@ -444,11 +454,15 @@ class RelationExperiment:
                                     for w in u_set & v_set])
         return values
 
-    def edge_utility(self, rpg, mode='equal', p_mode='single'):
+    def edge_utility(self, rpg, mode='equal', p_mode='single', affected=None):
         price = self.auto_edge_price(mode)
+        if affected is None:
+            all_edges = self.rpg.soc_net.edges()
+        else:
+            all_edges = affected
         if p_mode == 'single':
-            total = sum([price[edge] for edge in self.rpg.soc_net.edges()])
-            score = sum([price[edge] for edge in rpg.soc_net.edges()])
+            total = sum([price[edge] for edge in all_edges])
+            score = sum([price[edge] for edge in rpg.soc_net.edges() if edge in all_edges])
         else:
             total = sum([sum([price[node][attr] for attr in self.rpg.attr_net.neighbors(node)])
                          for node in self.rpg.soc_node])
@@ -471,20 +485,25 @@ class RelationExperiment:
         test_set = {}
         for secret in secret_list:
             test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        affected_node = [node for node, secret in secrets.items() if len(secrets) > 0]
+        sub_graph = nx.Graph(self.rpg.soc_net.subgraph(affected_node))
+        affected = [edge for edge in self.rpg.soc_net.edges() if sub_graph.has_edge(edge[0], edge[1])]
         for delta in delta_range:
             ran_random = self.rpg.random_mask(secrets, epsilon, delta, mode='on')
-            ran_nb = self.rpg.naive_bayes_relation(secrets, epsilon, delta)
+            ran_nb = self.rpg.naive_bayes_relation(secrets, epsilon, delta, factor=0.5)
             ran_ig = self.rpg.entropy_relation(secrets, price, epsilon, delta)
             ran_vkp = self.rpg.eppd_relation(secrets, price, epsilon, delta, True)
             # ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
             # Utility Calculate
             all_scores = {
-                'Random': self.edge_utility(ran_random, utility_name, p_mode),
-                'NaiveBayes': self.edge_utility(ran_nb, utility_name, p_mode),
-                'InfoGain': self.edge_utility(ran_ig, utility_name, p_mode),
-                'V-KP': self.edge_utility(ran_vkp, utility_name, p_mode),
+                'Random': self.edge_utility(ran_random, utility_name, p_mode, affected=affected),
+                'NaiveBayes': self.edge_utility(ran_nb, utility_name, p_mode, affected=affected),
+                'InfoGain': self.edge_utility(ran_ig, utility_name, p_mode, affected=affected),
+                'V-KP': self.edge_utility(ran_vkp, utility_name, p_mode, affected=affected),
                 # 'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode)
             }
+            print(all_scores)
+            """
             for secret in secret_list:
                 simulator.config(secret, epsilon, delta)
                 result_org = simulator.test_attack(test_set[secret], secret)
@@ -503,6 +522,7 @@ class RelationExperiment:
                         # 'V-KP-U': result_vkp_u[metric]
                     }
                     result_table[secret][metric].append(metric_row)
+            """
             utility_table.append(all_scores)
         return pd.DataFrame(utility_table, index=delta_range), result_table
 
@@ -753,11 +773,11 @@ def attr_lab_0223():
         # 'alnid-617': rate,
         'aencnid-14': rate
     }
-    output_dir = "/Users/jiayichen/ranproject/res226-2/"
+    output_dir = "/Users/jiayichen/ranproject/res317-attr/"
     expr = AttributeExperiment(a.rpg, expr_settings)
-    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.51, 0.05), 'common')
-    utility.to_csv(os.path.join(output_dir, 'utility.csv'))
-    expr.save_result_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
+    utility, result_table = expr.delta_experiment(0.5, np.arange(0, 0.31, 0.03), 'common')
+    utility.to_csv(os.path.join(output_dir, 'utility-c.csv'))
+    # expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
 
 
 def attack_lab_0226():
@@ -770,10 +790,10 @@ def attack_lab_0226():
         # 'alnid-617': rate,
         'aencnid-14': rate
     }
-    output_dir = "/Users/jiayichen/ranproject/res226-3/"
+    output_dir = "/Users/jiayichen/ranproject/res315/"
     expr = AttributeExperiment(a.rpg, expr_settings)
-    result_table = expr.attack_experiment(0.1, np.arange(0, 0.51, 0.05))
-    expr.save_attack_table(result_table, np.arange(0, 0.51, 0.05), output_dir)
+    result_table = expr.attack_experiment(0.5, np.arange(0, 0.31, 0.03))
+    expr.save_attack_table(result_table, np.arange(0, 0.31, 0.03), output_dir)
 
 def script_to_del():
     # a = FacebookNetwork()
@@ -838,13 +858,13 @@ def relation_lab_0308():
         'aencnid-14': rate
     }
     expr = RelationExperiment(a.rpg, expr_settings)
-    output_dir = "/Users/jiayichen/ranproject/res311/"
-    utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.51, 0.1), rate, utility_name='AA')
-    utility.to_csv(os.path.join(output_dir, 'utility-A.csv'))
-    expr.save_result_table(result_table, np.arange(0, 0.51, 0.1), output_dir)
+    output_dir = "/Users/jiayichen/ranproject/res317-edge/"
+    utility, result_table = expr.delta_experiment(0.5, np.arange(0, 0.31, 0.03), rate, utility_name='Jaccard')
+    utility.to_csv(os.path.join(output_dir, 'utility-J.csv'))
+    # expr.save_result_table(result_table, np.arange(0, 0.31, 0.03), output_dir)
 
 def relation_small_test():
-    a = FacebookNetwork()
+    a = FacebookEgoNet('0')
     rate = 0.5
     expr_settings = {
         'aensl-50': rate
@@ -852,8 +872,8 @@ def relation_small_test():
     expr = RelationExperiment(a.rpg, expr_settings)
     output_dir = "/Users/jiayichen/ranproject/res308/"
     utility, result_table = expr.delta_experiment(0.1, np.arange(0, 0.21, 0.02), rate, utility_name='AA')
-    utility.to_csv(os.path.join(output_dir, 'utility-a.csv'))
-    expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
+    # utility.to_csv(os.path.join(output_dir, 'utility-a.csv'))
+    # expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
 
 
 def attack_lab_0306():
@@ -923,6 +943,6 @@ if __name__ == '__main__':
     # nice_figure()
     # relation_small_test()
     # attack_lab_0306()
-    # relation_lab_0308()
-    attack_lab_0313()
+    relation_lab_0308()
+    # attack_lab_0313()
     # original_attack()

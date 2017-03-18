@@ -28,9 +28,9 @@ FOUR_ALGORITHMS = ['V-KP', 'InfoGain', 'NaiveBayes', 'Random']
 FIVE_ALGORITHMS = ['V-KP-U', 'InfoGain', 'NaiveBayes', 'Random']
 FOUR_NAMES = ['EPPD', 'IG', 'NB', 'Random']
 FIVE_NAMES = ['EPPD', 'IG', 'NB', 'Random']
-MLS_ORG = ['dt', 'lr', 'nb']
+MLS_ORG = ['dt', 'rf', 'lr', 'nb']
 MLS = [item + '-o' for item in MLS_ORG] + MLS_ORG
-MLS_NAMES = ['Decision Tree', 'Logistic Regression', 'Naive Bayes']
+MLS_NAMES = ['Decision Tree', 'Random Forest', 'Logistic Regression', 'Naive Bayes']
 MLS_NAMES_ALL = [item + ' (Prev.)' for item in MLS_NAMES] + [item + ' (Post.)' for item in MLS_NAMES]
 RAN_DEFAULT_OUTPUT = '/Users/jiayichen/ranproject/'
 CLF_ORG = ['wvrn', 'nolb-lr-distrib', 'logistic']
@@ -91,7 +91,7 @@ def ml_cmp_b(filename, x_name, y_name, attr, seq=MLS_ORG, cat=MLS_NAMES, exp_no=
     ax = table.plot(linewidth=2, fontsize=16)
     ax.set_xlabel(x_name, fontsize=20)
     ax.set_ylabel(y_name, fontsize=20)
-    ax.set_ylim([0.0, 1.01])
+    ax.set_ylim([0.8, 1.01])
     # ax.margins(y=0.05)
     out_dir = os.path.join(load_ranfig()['OUT'], datetime.now().strftime("%Y-%m-%d"))
     if not os.path.exists(out_dir):
@@ -105,28 +105,31 @@ def expr_attr_equal(data_dir):
     y_name = 'Utility ($p=1$)'
     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
     attrs = ['aenslid-538', 'aby-5', 'ahnid-84', 'aencnid-14'] #, 'alnid-617'
-    attr_cmp_utility(file, x_name, y_name, exp_no=data_dir)
+    attr_cmp_utility(file, x_name, y_name, exp_no=data_dir + '-e(g)')
+    """
     for attr in attrs:
         file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, '%s-(f1).csv' % attr)
         attr_cmp_f1(file, x_name, 'F-Score', attr, exp_no=data_dir)
+    """
 
 
 def expr_attr_unique(data_dir):
-    filename = 'utility.csv'
+    filename = 'utility-c.csv'
     x_name = '$\delta$'
-    y_name = 'Utility ($p=p_U$)'
+    y_name = 'Utility ($p=p_C$)'
     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
     attrs = ['aenslid-538', 'aby-5', 'ahnid-84', 'aencnid-14'] #, 'alnid-617'
-    attr_cmp_utility(file, x_name, y_name, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir)
+    attr_cmp_utility(file, x_name, y_name, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir +'-c')
+    """
     for attr in attrs:
         file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, '%s-(f1).csv' % attr)
         attr_cmp_f1(file, x_name, 'F-Score', attr, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir)
-
+    """
 
 def expr_edge_equal(data_dir):
-    filename = 'utility-A.csv'
+    filename = 'utility-J.csv'
     x_name = '$\delta$'
-    y_name = 'Utility ($p=p_A$)'
+    y_name = 'Utility ($p=p_J$)'
     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
     # attrs = ['aensl-50', 'aby-5', 'ahnid-84', 'aencnid-14']  # , 'alnid-617'
     attr_cmp_utility(file, x_name, y_name, FOUR_ALGORITHMS, FOUR_NAMES, exp_no=data_dir)
@@ -164,9 +167,9 @@ def expr_attack_relation(data_dir):
 
 
 if __name__ == '__main__':
-    # expr_attr_equal('res225')
-    # expr_attr_unique('res226')
-    # expr_attack('res226-3')
-    # expr_edge_equal('res306')
+    expr_attr_equal('res317-google')
+    # expr_attr_unique('res317-attr')
+    # expr_attack('res315')
+    # expr_edge_equal('res316')
     # expr_attack_relation('res306-3')
-    expr_edge_equal('res311')
+    # expr_edge_equal('res311')
