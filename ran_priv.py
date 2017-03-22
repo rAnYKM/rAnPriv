@@ -97,6 +97,16 @@ class RPGraph:
             node_dict[node] = tmp_array
         return node_dict
 
+    def __get_predecessor_array(self):
+        node_dict = {}
+        sup_soc = {n: i for i, n in enumerate(self.soc_node)}
+        for node in self.soc_node:
+            tmp_array = np.zeros(len(self.soc_node))
+            for soc in self.soc_net.predecessors_iter(node):
+                tmp_array[sup_soc[soc]] = 1
+            node_dict[node] = tmp_array
+        return node_dict
+
     def mutual_information(self, attr_a, attr_b, is_attr=True):
         """
         Return the mutual information between two attribtues (if is_attr is False, then relation)
@@ -425,6 +435,40 @@ class RPGraph:
         new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
         logging.debug("Random Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_ran
+
+    def random_directed(self, secrets, epsilon, delta):
+        def exceed_weights(w, max_w):
+            for i in range(len(w)):
+                if w[i] > max_w[i]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        mask_ratio = {node: [self.__get_max_weight(s, epsilon, delta) for s in secrets[node]]
+                      for node in soc_node}
+        count = 0
+        for n in soc_node:
+            secret = secrets[n]
+            if len(secret) == 0:
+                soc_edge += self.soc_net.edges(n)
+            else:
+                sl = self.soc_net.neighbors(n)
+                weights = [self.prob_secret_on_nodes(s, sl) for s in secret]
+                while exceed_weights(weights, mask_ratio[n]) and sl:
+                    a = Random()
+                    sl.pop(int(a.random() * len(sl)))
+                    weights = [self.prob_secret_on_nodes(s, sl) for s in secret]
+                soc_edge += [(n, soc) for soc in sl]
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("Random Masking: %d/%d social relations removed" %
+                      (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran
 
     def naive_bayes_mask(self, secrets, epsilon, delta, factor=0.1):
@@ -952,6 +996,36 @@ class RPGraph:
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran
 
+    def eppd_directed(self, secrets, price, epsilon, delta):
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        attr_edge = self.attr_edge
+        soc_edge = list()
+        # For directed relation disclosure problem, we follow the same strategy with attribute
+        # Process node by node, and only consider its successors
+        count = 0
+        print(price.keys()[:5])
+        for node in self.soc_node:
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+            if len(secrets[node]) == 0:
+                soc_edge += self.soc_net.edges(node)
+                continue
+            items = []
+            max_weights = [self.__get_max_weight(secret, epsilon, delta) for secret in secrets[node]]
+            for successor in self.soc_net.neighbors(node):
+                value = price[(node, successor)]
+                weight = self.neighbor_array[successor]
+                items.append((successor, value, weight))
+            s_arrays = [self.attr_array[s] for s in secrets[node]]
+            val, sel = VecKnapsack(len(soc_node), s_arrays, items, max_weights).greedy_solver()
+            soc_edge += [(node, item) for item in sel]
+        new_ran = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("V-Knapsack Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - len(soc_edge), len(self.soc_edge)))
+        return new_ran
+
     def s_knapsack_relation_global(self, secrets, price, epsilon, delta):
         soc_node = self.soc_node
         attr_node = self.attr_node
@@ -1021,7 +1095,10 @@ class RPGraph:
         # self.soc_attr_net = self.__build_net(soc_node + attr_node, soc_edge + attr_edge, self.is_directed)
         t0 = time.time()
         self.attr_array = self.__get_attr_array()
-        self.neighbor_array = self.__get_neighbor_array()
+        if is_directed:
+            self.neighbor_array = self.__get_predecessor_array()
+        else:
+            self.neighbor_array = self.__get_neighbor_array()
         # logging.debug('[RPGraph] Support array time (%d, %d) : %f s' % (len(self.attr_array.keys()),
         #                                                                 len(self.neighbor_array.keys()),
         #                                                                time.time() - t0))

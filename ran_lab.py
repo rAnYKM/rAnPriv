@@ -283,6 +283,22 @@ class AttributeExperiment:
                 result_table[secret].append(tmp_line)
         return result_table
 
+    def org_attack_experiment(self):
+        secrets, _ = self.resampling()
+        price = self.auto_attr_price()
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = AttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for secret in secret_list:
+            for alg in ML_ALGS:
+                simulator.config(secret, epsilon=simulator.epsilon,
+                                 delta=simulator.delta, classifier=alg)
+                tmp_line = {'Precision': simulator.score[0],
+                            'Recall': simulator.score[1],
+                            'F-Score': simulator.score[2]}
+                result_table[secret].append(tmp_line)
+        return result_table
 
     def delta_experiment(self, epsilon, delta_range, utility_name='equal'):
         secrets, _ = self.resampling()
@@ -391,6 +407,12 @@ class AttributeExperiment:
     def save_attack_table(self, result_table, delta_range, output='out'):
         for secret, table in result_table.items():
             pd_table = pd.DataFrame(table, index=delta_range)
+            pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
+    def save_original_attack_table(self, result_table, output='out'):
+        for secret, table in result_table.items():
+            pd_table = pd.DataFrame(table, index=ML_ALGS)
             pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
         logging.debug('[ran_lab] Result Output Fin.')
 
@@ -550,6 +572,22 @@ class RelationExperiment:
                 result_table[secret].append(tmp_line)
         return result_table
 
+    def origin_attack_experiment(self, rate=0.5):
+        secrets, exposed = self.resampling()
+        test_set = {}
+        secret_list = [s for s in self.secret_settings.keys()]
+        simulator = RelationAttackSimulator(self.rpg, secrets, secret_list[0])
+        result_table = {secret: []
+                        for secret in secret_list}
+        for secret in secret_list:
+            test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        for secret in secret_list:
+            for alg in RCLASSIFIERS:
+                result_org = simulator.test_attack(test_set[secret], secret, alg)
+                tmp_line = result_org
+                result_table[secret].append(tmp_line)
+        return result_table
+
     def attack_cross_experiment(self, epsilon, delta_range, rate=0.5):
         secrets, exposed = self.resampling()
         price = self.auto_edge_price()
@@ -621,6 +659,12 @@ class RelationExperiment:
     def save_attack_table(self, result_table, delta_range, output='out'):
         for secret, table in result_table.items():
             pd_table = pd.DataFrame(table, index=delta_range)
+            pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
+        logging.debug('[ran_lab] Result Output Fin.')
+
+    def save_original_attack_table(self, result_table, output='out'):
+        for secret, table in result_table.items():
+            pd_table = pd.DataFrame(table, index=RCLASSIFIERS)
             pd_table.to_csv(os.path.join(output, '%s.csv' % (secret)))
         logging.debug('[ran_lab] Result Output Fin.')
 
@@ -790,10 +834,12 @@ def attack_lab_0226():
         # 'alnid-617': rate,
         'aencnid-14': rate
     }
-    output_dir = "/Users/jiayichen/ranproject/res315/"
+    output_dir = "/Users/jiayichen/ranproject/res317-2/"
     expr = AttributeExperiment(a.rpg, expr_settings)
-    result_table = expr.attack_experiment(0.5, np.arange(0, 0.31, 0.03))
-    expr.save_attack_table(result_table, np.arange(0, 0.31, 0.03), output_dir)
+    # result_table = expr.attack_experiment(0.5, np.arange(0, 0.31, 0.03))
+    # expr.save_attack_table(result_table, np.arange(0, 0.31, 0.03), output_dir)
+    result_table = expr.org_attack_experiment()
+    expr.save_original_attack_table(result_table, output_dir)
 
 def script_to_del():
     # a = FacebookNetwork()
@@ -938,11 +984,11 @@ if __name__ == '__main__':
     """
     # attr_statistics(FacebookNetwork().rpg)
     # attr_lab_0223()
-    # attack_lab_0226()
+    attack_lab_0226()
     # script_to_del()
     # nice_figure()
     # relation_small_test()
     # attack_lab_0306()
-    relation_lab_0308()
+    # relation_lab_0308()
     # attack_lab_0313()
     # original_attack()

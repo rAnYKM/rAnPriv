@@ -461,7 +461,7 @@ class VecKnapsack:
     def single_weight(self, a_array):
         res_li = list()
         for s_array in self.s_arrays:
-            res_li.append(len(a_array * s_array) / float(a_array.sum()))
+            res_li.append(a_array.dot(s_array.transpose()) / float(a_array.sum()))
         res_lii = [j / self.max_weights[i] for i, j in enumerate(res_li)]
         return res_lii
 

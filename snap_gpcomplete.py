@@ -19,7 +19,7 @@ import pandas as pd
 import networkx as nx
 from ranfig import load_ranfig
 from ran_priv import RPGraph
-from ran_lab import attr_statistics, AttributeExperiment
+from ran_lab import attr_statistics, AttributeExperiment, RelationExperiment
 
 WORD_IGNORE = ['.com', 'Inc', 'Corporation', 'Employed', 'employed', 'Company', 'Corps', 'Microsystems',
                '.tv', 'Media', 'Ventures', 'Android', 'Research', 'Interactive', 'News']
@@ -244,7 +244,7 @@ class GooglePlusNetwork:
         self.attr_edge = self.attr_net.edges()
         self.soc_edge = self.soc_net.edges()
         t0 = time.time()
-        self.rpg = RPGraph(self.soc_node, self.attr_node, self.soc_edge, self.attr_edge)
+        self.rpg = RPGraph(self.soc_node, self.attr_node, self.soc_edge, self.attr_edge, True)
         logging.debug('[GPNetwork] RPGraph Init. in %f s' % (time.time() - t0))
 
 def test_code():
@@ -267,6 +267,20 @@ def attr_lab_317():
     utility.to_csv(os.path.join(output_dir, 'utility.csv'))
     # expr.save_result_table(result_table, np.arange(0, 0.21, 0.02), output_dir)
 
-if __name__ == '__main__':
-    attr_lab_317()
+def test_code2():
+    a = GooglePlusNetwork()
+    rate = 0.5
+    expr_settings = {
+        'inst_google': rate,
+        'job_manager': rate,
+        'place_newyork': rate,
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    secrets, _ = expr.resampling()
+    price = expr.auto_edge_price()
+    a.rpg.random_directed(secrets, 0.5, 0.1)
+    a.rpg.eppd_directed(secrets, price, 0.5, 0.1)
 
+if __name__ == '__main__':
+    # attr_lab_317()
+    test_code2()
