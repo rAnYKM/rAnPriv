@@ -484,7 +484,7 @@ class RelationExperiment:
             all_edges = affected
         if p_mode == 'single':
             total = sum([price[edge] for edge in all_edges])
-            score = sum([price[edge] for edge in rpg.soc_net.edges() if edge in all_edges])
+            score = sum([price[edge] for edge in all_edges if rpg.soc_net.has_edge(edge[0], edge[1])])
         else:
             total = sum([sum([price[node][attr] for attr in self.rpg.attr_net.neighbors(node)])
                          for node in self.rpg.soc_node])
@@ -507,9 +507,10 @@ class RelationExperiment:
         test_set = {}
         for secret in secret_list:
             test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
-        affected_node = [node for node, secret in secrets.items() if len(secrets) > 0]
-        sub_graph = nx.Graph(self.rpg.soc_net.subgraph(affected_node))
-        affected = [edge for edge in self.rpg.soc_net.edges() if sub_graph.has_edge(edge[0], edge[1])]
+        affected_node = [node for node, secret in secrets.items() if len(secret) > 0]
+        affected = [edge for edge in self.rpg.soc_net.edges()
+                    if edge[0] in affected_node or edge[1] in affected_node]
+        print(len(affected))
         for delta in delta_range:
             ran_random = self.rpg.random_mask(secrets, epsilon, delta, mode='on')
             ran_nb = self.rpg.naive_bayes_relation(secrets, epsilon, delta, factor=0.5)
@@ -547,6 +548,41 @@ class RelationExperiment:
             """
             utility_table.append(all_scores)
         return pd.DataFrame(utility_table, index=delta_range), result_table
+
+    def delta_directed(self, epsilon, delta_range, rate=0.5, utility_name='equal'):
+        secrets, exposed = self.resampling()
+        if utility_name == 'common':
+            p_mode = 'double'
+        else:
+            p_mode = 'single'
+        price = self.auto_edge_price(utility_name)
+        utility_table = []
+        secret_list = [s for s in self.secret_settings.keys()]
+        test_set = {}
+        for secret in secret_list:
+            test_set[secret] = self.generate_test_nodes(secret, rate, secrets, exposed)
+        affected_node = [node for node, secret in secrets.items() if len(secret) > 0]
+        affected = []
+        for node in affected_node:
+            affected += self.rpg.soc_net.edges(node)
+        logging.debug('out edge number = %d' % len(affected))
+        for delta in delta_range:
+            ran_random = self.rpg.random_directed(secrets, epsilon, delta)
+            ran_nb = self.rpg.naive_bayes_directed(secrets, epsilon, delta, factor=0.5)
+            ran_ig = self.rpg.entropy_directed(secrets, price, epsilon, delta)
+            ran_vkp = self.rpg.eppd_directed(secrets, price, epsilon, delta)
+            # ran_vkp_utility = self.rpg.v_knapsack_mask(secrets, price, epsilon, delta, p_mode=p_mode)
+            # Utility Calculate
+            all_scores = {
+                'Random': self.edge_utility(ran_random, utility_name, p_mode, affected=affected),
+                'NaiveBayes': self.edge_utility(ran_nb, utility_name, p_mode, affected=affected),
+                'InfoGain': self.edge_utility(ran_ig, utility_name, p_mode, affected=affected),
+                'V-KP': self.edge_utility(ran_vkp, utility_name, p_mode, affected=affected),
+                # 'V-KP-U': self.attr_utility(ran_vkp_utility, utility_name, p_mode)
+            }
+            print(all_scores)
+            utility_table.append(all_scores)
+        return pd.DataFrame(utility_table, index=delta_range)
 
     def attack_experiment(self, epsilon, delta_range, rate=0.5):
         secrets, exposed = self.resampling()
@@ -904,10 +940,12 @@ def relation_lab_0308():
         'aencnid-14': rate
     }
     expr = RelationExperiment(a.rpg, expr_settings)
-    output_dir = "/Users/jiayichen/ranproject/res317-edge/"
-    utility, result_table = expr.delta_experiment(0.5, np.arange(0, 0.31, 0.03), rate, utility_name='Jaccard')
-    utility.to_csv(os.path.join(output_dir, 'utility-J.csv'))
+    output_dir = "/Users/jiayichen/ranproject/res326-edge/"
+    utility, result_table = expr.delta_experiment(0.5, np.arange(0, 0.31, 0.03), rate, utility_name='equal')
+    utility.to_csv(os.path.join(output_dir, 'utility.csv'))
     # expr.save_result_table(result_table, np.arange(0, 0.31, 0.03), output_dir)
+
+
 
 def relation_small_test():
     a = FacebookEgoNet('0')
@@ -984,11 +1022,11 @@ if __name__ == '__main__':
     """
     # attr_statistics(FacebookNetwork().rpg)
     # attr_lab_0223()
-    attack_lab_0226()
+    # attack_lab_0226()
     # script_to_del()
     # nice_figure()
     # relation_small_test()
     # attack_lab_0306()
-    # relation_lab_0308()
+    relation_lab_0308()
     # attack_lab_0313()
     # original_attack()

@@ -171,12 +171,12 @@ def expr_attr_unique(data_dir):
     """
 
 def expr_edge_equal(data_dir):
-    filename = 'utility-J.csv'
+    filename = 'utility.csv'
     x_name = '$\delta$'
-    y_name = P_JACCARD
+    y_name = P_EQUAL
     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, filename)
     # attrs = ['aensl-50', 'aby-5', 'ahnid-84', 'aencnid-14']  # , 'alnid-617'
-    attr_cmp_utility(file, x_name, y_name, FOUR_ALGORITHMS, FOUR_NAMES, exp_no=data_dir + '-j')
+    attr_cmp_utility(file, x_name, y_name, FOUR_ALGORITHMS, FOUR_NAMES, exp_no=data_dir + '-e')
     # for attr in attrs:
     #     file = os.path.join(RAN_DEFAULT_OUTPUT, data_dir, '%s-(f1).csv' % attr)
     #     attr_cmp_f1(file, x_name, 'F-Score', attr, FIVE_ALGORITHMS, FIVE_NAMES, exp_no=data_dir)
@@ -266,6 +266,6 @@ if __name__ == '__main__':
     # expr_attack('fb-attr')
     # expr_edge_equal('res3NUM_FONT_SIZE')
     # expr_attack_relation('res319')
-    expr_edge_equal('fb-edge')
+    expr_edge_equal('res324')
     # attr_group_plot('fb-attr')
     # orignal_attack_effect('res317-2')

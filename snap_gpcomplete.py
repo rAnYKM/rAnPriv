@@ -279,8 +279,25 @@ def test_code2():
     secrets, _ = expr.resampling()
     price = expr.auto_edge_price()
     a.rpg.random_directed(secrets, 0.5, 0.1)
+    a.rpg.naive_bayes_directed(secrets, 0.5, 0.1, factor=0.5)
+    a.rpg.entropy_directed(secrets, price, 0.5, 0.1)
     a.rpg.eppd_directed(secrets, price, 0.5, 0.1)
+
+
+def relation_lab_0323():
+    a = GooglePlusNetwork()
+    rate = 0.5
+    expr_settings = {
+        'inst_google': rate,
+        'job_manager': rate,
+        'place_newyork': rate,
+    }
+    expr = RelationExperiment(a.rpg, expr_settings)
+    output_dir = "/Users/jiayichen/ranproject/res324/"
+    utility = expr.delta_directed(0.5, np.arange(0, 0.31, 0.03), rate, utility_name='Jaccard')
+    utility.to_csv(os.path.join(output_dir, 'utility-J.csv'))
 
 if __name__ == '__main__':
     # attr_lab_317()
-    test_code2()
+    # test_code2()
+    relation_lab_0323()

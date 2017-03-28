@@ -561,6 +561,56 @@ class RPGraph:
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran
 
+    def naive_bayes_directed(self, secrets, epsilon, delta, factor=0.1):
+        def exceed_weights(w, max_w):
+            for wi in range(len(w)):
+                if w[wi] > max_w[wi]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        count = 0
+        for n in soc_node:
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+            secret = secrets[n]
+            if len(secret) == 0:
+                soc_edge += self.soc_net.edges(n)
+            else:
+                # Calculate the weight between secrets and attributes
+                items = self.soc_net.neighbors(n)
+                # weights = [self.prob_secret_on_nodes(s, items) for s in secret]
+                sw = [(ff, sum([self.prob_nodes_on_secret(s, [ff]) * factor +
+                           self.prob_secret_on_nodes(s, [ff]) * (1 - factor)
+                           for s in secret]))
+                      for ff in items]
+                mask_ratio = [self.__get_max_weight(s, epsilon, delta) for s in secret]
+                pool = sorted(sw, key=lambda tup: tup[1], reverse=False)
+                sel_pool = []
+                for item in pool:
+                    cur_item = item[0]
+                    cur_weight = [self.prob_secret_on_nodes(secret, sel_pool + [cur_item]) for secret in secrets[n]]
+                    if exceed_weights(cur_weight, mask_ratio):
+                        continue
+                    else:
+                        sel_pool.append(item[0])
+                """
+                while exceed_weights(weights, mask_ratio) and items:
+                    index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                    items.pop(index)
+                    sw.pop(index)
+                    weights = [self.prob_secret_on_nodes(s, items) for s in secret]
+                """
+                soc_edge += [(n, item) for item in sel_pool]
+        new_rpg = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("Naive Bayes Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - new_rpg.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_rpg
+
     def entropy_mask(self, secrets, price, epsilon, delta, p_mode='single'):
         """ knapsack-like solver
         :param secrets: {soc_node: [attr_node]}
@@ -597,9 +647,9 @@ class RPGraph:
                 weights = [self.prob_secret_on_attributes(s, fn) for s in secret]
                 # TODO: Check again if there is anything wrong
                 if p_mode == 'single':
-                    sw = [sum([self.mutual_information(s, ff) for s in secret]) / price[ff] for ff in fn]
+                    sw = [sum([self.mutual_information(ff, s) for s in secret]) / price[ff] for ff in fn]
                 else:
-                    sw = [sum([self.mutual_information(s, ff) for s in secret]) / price[n][ff] for ff in fn]
+                    sw = [sum([self.mutual_information(ff, s) for s in secret]) / price[n][ff] for ff in fn]
                 mask_ratio = [self.__get_max_weight(s, epsilon, delta) for s in secret]
                 while exceed_weights(weights, mask_ratio) and fn:
                     index, value = max(enumerate(sw), key=operator.itemgetter(1))
@@ -657,10 +707,10 @@ class RPGraph:
             weight = []
             for index, sec in enumerate(secrets[u]):
                 met = small_network.degree(u) / num_edge
-                weight.append(self.mutual_information(v, sec, False) + np.log(met))
+                weight.append(self.mutual_information(v, sec, False)) # + np.log(met))
             for index, sec in enumerate(secrets[v]):
                 met = small_network.degree(v) / num_edge
-                weight.append(self.mutual_information(u, sec, False) + np.log(met))
+                weight.append(self.mutual_information(u, sec, False)) # + np.log(met))
             item = (edge, price[edge], weight)
             items.append(item)
 
@@ -695,6 +745,75 @@ class RPGraph:
         logging.debug("Entropy Masking: %d/%d social relations removed"
                       % (len(self.soc_edge) - new_ran.soc_net.number_of_edges(), len(self.soc_edge)))
         return new_ran
+
+    def entropy_directed(self, secrets, price, epsilon, delta, p_mode='single'):
+        """ knapsack-like solver
+        :param secrets: {soc_node: [attr_node]}
+        :param price: dict
+        :param epsilon: float
+        :param delta: float
+        :param p_mode: string
+        :return: RPGraph
+        """
+
+        # TODO: Implementation
+        def exceed_weights(w, max_w):
+            for wi in range(len(w)):
+                if w[wi] > max_w[wi]:
+                    return True
+            return False
+
+        soc_node = self.soc_node
+        attr_node = self.attr_node
+        soc_edge = []
+        attr_edge = self.attr_edge
+        count = 0
+        for n in soc_node:
+            count += 1
+            if count % 1000 == 0:
+                print(count)
+            secret = secrets[n]
+            if len(secret) == 0:
+                soc_edge += self.soc_net.edges(n)
+            else:
+                # Calculate the weight between secrets and attributes
+                # if p_mode == 'single':
+                #     items.append((a, price[a], weight))
+                # else:
+                #     items.append((a, price[n][a], weight))
+                items = self.soc_net.neighbors(n)
+                weights = [self.prob_secret_on_nodes(s, items) for s in secret]
+                # TODO: Check again if there is anything wrong
+                if p_mode == 'single':
+                    sw = [(ff, sum([self.mutual_information(ff, s, False)
+                               for s in secret]) / price[(n, ff)])
+                          for ff in items]
+                else:
+                    sw = [(ff, sum([self.mutual_information(ff, s, False)
+                                for s in secret]) / price[n][ff])
+                          for ff in items]
+                mask_ratio = [self.__get_max_weight(s, epsilon, delta) for s in secret]
+                pool = sorted(sw, key=lambda tup: tup[1], reverse=False)
+                sel_pool = []
+                for item in pool:
+                    cur_item = item[0]
+                    cur_weight = [self.prob_secret_on_nodes(secret, sel_pool + [cur_item]) for secret in secrets[n]]
+                    if exceed_weights(cur_weight, mask_ratio):
+                        continue
+                    else:
+                        sel_pool.append(item[0])
+                """
+                while exceed_weights(weights, mask_ratio) and items:
+                    index, value = max(enumerate(sw), key=operator.itemgetter(1))
+                    items.pop(index)
+                    sw.pop(index)
+                    weights = [self.prob_secret_on_nodes(s, items) for s in secret]
+                """
+                soc_edge += [(n, soc) for soc in sel_pool]
+        new_rpg = RPGraph(soc_node, attr_node, soc_edge, attr_edge)
+        logging.debug("Entropy Masking: %d/%d social relations removed"
+                      % (len(self.soc_edge) - new_rpg.soc_net.number_of_edges(), len(self.soc_edge)))
+        return new_rpg
 
     def d_knapsack_mask(self, secrets, price, epsilon, delta, mode='greedy', p_mode='single'):
         """ knapsack-like solver
